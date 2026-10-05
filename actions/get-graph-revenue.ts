@@ -1,4 +1,6 @@
-import prismadb from "@/lib/prismadb";
+import { Decimal } from "@prisma/client/runtime/library";
+
+import { getStoreSalesOrders } from "@/lib/store-sales";
 
 interface GraphData {
   name: string;
@@ -6,31 +8,17 @@ interface GraphData {
 }
 
 export const getGraphRevenue = async (storeId: string): Promise<GraphData[]> => {
-  const paidOrders = await prismadb.order.findMany({
-    where: {
-      storeId,
-      isPaid: true,
-    },
-    include: {
-      orderItems: {
-        include: {
-          product: true,
-        },
-      },
-    },
-  });
+  // Eligible orders (CONFIRMED + DELIVERED) with their exact Decimal amounts.
+  const salesOrders = await getStoreSalesOrders(storeId);
 
-  const monthlyRevenue: { [key: number]: number } = {};
+  const monthlyRevenue: { [key: number]: Decimal } = {};
 
   // Grouping the orders by month and summing the revenue
-  for (const order of paidOrders) {
+  for (const order of salesOrders) {
     const month = order.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-    const revenueForOrder = order.total != null
-      ? order.total.toNumber()
-      : order.orderItems.reduce((sum, item) => sum + item.product.price.toNumber() * item.quantity, 0);
 
     // Adding the revenue for this order to the respective month
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + revenueForOrder;
+    monthlyRevenue[month] = monthlyRevenue[month] ? monthlyRevenue[month].plus(order.amount) : order.amount;
   }
 
   // Converting the grouped data into the format expected by the graph
@@ -51,7 +39,7 @@ export const getGraphRevenue = async (storeId: string): Promise<GraphData[]> => 
 
   // Filling in the revenue data
   for (const month in monthlyRevenue) {
-    graphData[parseInt(month)].total = monthlyRevenue[parseInt(month)];
+    graphData[parseInt(month)].total = monthlyRevenue[parseInt(month)].toNumber();
   }
 
   return graphData;
