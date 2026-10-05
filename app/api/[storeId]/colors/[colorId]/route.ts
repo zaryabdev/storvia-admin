@@ -2,19 +2,27 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
+import { existsInStore } from "@/lib/store-scope";
 
 export async function GET(
   req: Request,
-  { params }: { params: { colorId: string } }
+  { params }: { params: { colorId: string, storeId: string } }
 ) {
   try {
     if (!params.colorId) {
       return new NextResponse("Color id is required", { status: 400 });
     }
 
-    const color = await prismadb.color.findUnique({
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
+    }
+
+    // Public read: Store-scoped like the product and category by-id reads.
+    // A miss (unknown / other Store) returns HTTP 200 with a `null` body.
+    const color = await prismadb.color.findFirst({
       where: {
-        id: params.colorId
+        id: params.colorId,
+        storeId: params.storeId,
       }
     });
   
@@ -49,6 +57,10 @@ export async function DELETE(
 
     if (!storeByUserId) {
       return new NextResponse("Unauthorized", { status: 405 });
+    }
+
+    if (!(await existsInStore("color", params.colorId, params.storeId))) {
+      return new NextResponse("Color not found", { status: 404 });
     }
 
     const color = await prismadb.color.delete({
@@ -102,6 +114,10 @@ export async function PATCH(
 
     if (!storeByUserId) {
       return new NextResponse("Unauthorized", { status: 405 });
+    }
+
+    if (!(await existsInStore("color", params.colorId, params.storeId))) {
+      return new NextResponse("Color not found", { status: 404 });
     }
 
     const color = await prismadb.color.update({

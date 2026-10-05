@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
+import { existsInStore, findForeignReference } from "@/lib/store-scope";
 
 export async function GET(
   req: Request,
@@ -66,6 +67,10 @@ export async function DELETE(
 
     if (!storeByUserId) {
       return new NextResponse("Unauthorized", { status: 405 });
+    }
+
+    if (!(await existsInStore("product", params.productId, params.storeId))) {
+      return new NextResponse("Product not found", { status: 404 });
     }
 
     const product = await prismadb.product.delete({
@@ -138,6 +143,17 @@ export async function PATCH(
 
     if (!storeByUserId) {
       return new NextResponse("Unauthorized", { status: 405 });
+    }
+
+    // Ownership is confirmed before any write, including the image reset.
+    if (!(await existsInStore("product", params.productId, params.storeId))) {
+      return new NextResponse("Product not found", { status: 404 });
+    }
+
+    const foreignReference = await findForeignReference(params.storeId, { categoryId, sizeId, colorId });
+
+    if (foreignReference) {
+      return new NextResponse(foreignReference, { status: 400 });
     }
 
     await prismadb.product.update({

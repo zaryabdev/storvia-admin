@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
+import { findForeignReference } from "@/lib/store-scope";
 
 export async function GET(
   req: Request,
@@ -171,6 +172,12 @@ export async function PATCH(
       }
     } else if (!normalizedBillboardId) {
       return new NextResponse("Billboard ID is required", { status: 400 });
+    }
+
+    const foreignReference = await findForeignReference(params.storeId, { billboardId: normalizedBillboardId });
+
+    if (foreignReference) {
+      return new NextResponse(foreignReference, { status: 400 });
     }
 
     const category = await prismadb.category.update({

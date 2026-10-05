@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { existsInStore } from "@/lib/store-scope";
 
 export async function GET(
     req: Request,
@@ -88,6 +89,10 @@ export async function DELETE(
             return new NextResponse("Unauthorized", { status: 405 });
         }
 
+        if (!(await existsInStore("billboard", params.billboardId, params.storeId))) {
+            return new NextResponse("Billboard not found", { status: 404 });
+        }
+
         const billboard = await prismadb.billboard.delete({
             where: {
                 id: params.billboardId,
@@ -139,6 +144,10 @@ export async function PATCH(
 
         if (!storeByUserId) {
             return new NextResponse("Unauthorized", { status: 405 });
+        }
+
+        if (!(await existsInStore("billboard", params.billboardId, params.storeId))) {
+            return new NextResponse("Billboard not found", { status: 404 });
         }
 
         const billboard = await prismadb.billboard.update({

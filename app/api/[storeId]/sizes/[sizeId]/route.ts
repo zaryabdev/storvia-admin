@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { existsInStore } from "@/lib/store-scope";
 import { auth } from "@clerk/nextjs";
 
 export async function GET(
   req: Request,
-  { params }: { params: { sizeId: string } }
+  { params }: { params: { sizeId: string, storeId: string } }
 ) {
   try {
     if (!params.sizeId) {
       return new NextResponse("Size id is required", { status: 400 });
     }
 
-    const size = await prismadb.size.findUnique({
+    if (!params.storeId) {
+      return new NextResponse("Store id is required", { status: 400 });
+    }
+
+    // Public read: Store-scoped like the product and category by-id reads.
+    // A miss (unknown / other Store) returns HTTP 200 with a `null` body.
+    const size = await prismadb.size.findFirst({
       where: {
-        id: params.sizeId
+        id: params.sizeId,
+        storeId: params.storeId,
       }
     });
   
@@ -49,6 +57,10 @@ export async function DELETE(
 
     if (!storeByUserId) {
       return new NextResponse("Unauthorized", { status: 405 });
+    }
+
+    if (!(await existsInStore("size", params.sizeId, params.storeId))) {
+      return new NextResponse("Size not found", { status: 404 });
     }
 
     const size = await prismadb.size.delete({
@@ -102,6 +114,10 @@ export async function PATCH(
 
     if (!storeByUserId) {
       return new NextResponse("Unauthorized", { status: 405 });
+    }
+
+    if (!(await existsInStore("size", params.sizeId, params.storeId))) {
+      return new NextResponse("Size not found", { status: 404 });
     }
 
     const size = await prismadb.size.update({

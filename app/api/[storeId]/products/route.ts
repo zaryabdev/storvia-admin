@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs';
 
 import prismadb from '@/lib/prismadb';
 import { buildProductSearchFilter, parseSearchTerms } from '@/lib/product-search';
+import { findForeignReference } from '@/lib/store-scope';
 
 export async function POST(
   req: Request,
@@ -62,6 +63,12 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 
+    const foreignReference = await findForeignReference(params.storeId, { categoryId, sizeId, colorId });
+
+    if (foreignReference) {
+      return new NextResponse(foreignReference, { status: 400 });
+    }
+
     const product = await prismadb.product.create({
       data: {
         name,
@@ -99,7 +106,9 @@ export async function GET(
     const categoryId = searchParams.get('categoryId') || undefined;
     const colorId = searchParams.get('colorId') || undefined;
     const sizeId = searchParams.get('sizeId') || undefined;
-    const isFeatured = searchParams.get('isFeatured');
+    // "true" => featured only, "false" => not featured, anything else => no filter.
+    const isFeaturedParam = searchParams.get('isFeatured');
+    const isFeatured = isFeaturedParam === 'true' ? true : isFeaturedParam === 'false' ? false : undefined;
     const includeChildCategories = searchParams.get('includeChildCategories') === 'true';
     // Optional Storefront search text; missing/blank means no search filter.
     const searchTerms = parseSearchTerms(searchParams.get('q'));
@@ -140,7 +149,7 @@ export async function GET(
         categoryId: categoryIds ? { in: categoryIds } : categoryId,
         colorId,
         sizeId,
-        isFeatured: isFeatured ? true : undefined,
+        isFeatured,
         isArchived: false,
         // Search composes with every filter above (AND). Empty => no-op.
         AND: buildProductSearchFilter(searchTerms),
