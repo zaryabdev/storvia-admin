@@ -87,8 +87,10 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { BangleIcon, BraceletIcon, EarringsIcon, NecklaceIcon, RingIcon } from "@/lib/custom-icons";
+
 // Curated Category icon library (lucide-react, named imports only — never the
-// whole set). Keys are Storvia's own stable kebab-case names, stored in
+// whole set — plus Storvia's own Lucide-style icons from lib/custom-icons.tsx). Keys are Storvia's own stable kebab-case names, stored in
 // Category.iconKey; a Lucide rename only changes an import here.
 // To add an icon, add it to this file in BOTH storvia-admin and
 // storvia-storefront; the two copies must stay byte-identical.
@@ -128,6 +130,11 @@ export const CATEGORY_ICONS = {
   "luxury": { icon: Crown, label: "Luxury", group: "Watches & jewellery", keywords: ["premium", "designer", "branded"] },
   "jewellery": { icon: Diamond, label: "Jewellery", group: "Watches & jewellery", keywords: ["jewelry", "rings", "necklace", "earrings", "bangles", "gold", "silver"] },
   "gemstones": { icon: Gem, label: "Gemstones", group: "Watches & jewellery", keywords: ["stones", "gems", "precious"] },
+  "ring": { icon: RingIcon, label: "Rings", group: "Watches & jewellery", keywords: ["ring", "engagement", "wedding band", "anguthi", "gold ring"] },
+  "necklace": { icon: NecklaceIcon, label: "Necklaces", group: "Watches & jewellery", keywords: ["necklace", "pendant", "chain", "locket", "haar"] },
+  "earrings": { icon: EarringsIcon, label: "Earrings", group: "Watches & jewellery", keywords: ["earrings", "jhumka", "studs", "tops", "bali"] },
+  "bangle": { icon: BangleIcon, label: "Bangles", group: "Watches & jewellery", keywords: ["bangles", "kada", "churi", "kangan"] },
+  "bracelet": { icon: BraceletIcon, label: "Bracelets", group: "Watches & jewellery", keywords: ["bracelet", "anklet", "payal", "charm bracelet"] },
   "fine-jewellery": { icon: Sparkles, label: "Bridal & fine jewellery", group: "Watches & jewellery", keywords: ["bridal", "wedding", "fine jewelry", "sets"] },
 
   // Grocery & kitchen
