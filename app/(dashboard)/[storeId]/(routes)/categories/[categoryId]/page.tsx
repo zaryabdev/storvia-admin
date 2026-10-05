@@ -7,9 +7,10 @@ const CategoryPage = async ({
 }: {
   params: { categoryId: string, storeId: string }
 }) => {
-  const category = await prismadb.category.findUnique({
+  const category = await prismadb.category.findFirst({
     where: {
-      id: params.categoryId
+      id: params.categoryId,
+      storeId: params.storeId,
     },
     include: {
       children: true,

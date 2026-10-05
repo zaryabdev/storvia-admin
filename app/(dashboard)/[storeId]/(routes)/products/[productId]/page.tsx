@@ -8,9 +8,10 @@ const ProductPage = async ({
 }: {
   params: { productId: string, storeId: string }
 }) => {
-  const product = await prismadb.product.findUnique({
+  const product = await prismadb.product.findFirst({
     where: {
       id: params.productId,
+      storeId: params.storeId,
     },
     include: {
       images: { orderBy: [...PRODUCT_IMAGE_ORDER] },

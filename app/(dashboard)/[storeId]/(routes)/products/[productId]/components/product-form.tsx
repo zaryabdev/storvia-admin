@@ -30,7 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 const formSchema = z.object({
   name: z.string().min(1),
-  images: z.object({ url: z.string() }).array().max(8, "A product can have at most 8 photos."),
+  images: z.object({ url: z.string() }).array().min(1, "Add at least one image").max(8, "A product can have at most 8 photos."),
   price: z.coerce.number().min(1),
   quantity: z.coerce.number().int().min(0),
   categoryId: z.string().min(1),
