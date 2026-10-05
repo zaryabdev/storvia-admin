@@ -1,4 +1,5 @@
 import prismadb from "@/lib/prismadb";
+import { PRODUCT_IMAGE_ORDER } from "@/lib/product-images";
 
 import { ProductForm } from "./components/product-form";
 
@@ -12,7 +13,7 @@ const ProductPage = async ({
       id: params.productId,
     },
     include: {
-      images: true,
+      images: { orderBy: [...PRODUCT_IMAGE_ORDER] },
     }
   });
 

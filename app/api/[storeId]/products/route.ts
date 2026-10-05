@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs';
 import prismadb from '@/lib/prismadb';
 import { buildProductSearchFilter, parseSearchTerms } from '@/lib/product-search';
 import { findForeignReference } from '@/lib/store-scope';
+import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from '@/lib/product-images';
 
 export async function POST(
   req: Request,
@@ -26,6 +27,12 @@ export async function POST(
 
     if (!images || !images.length) {
       return new NextResponse("Images are required", { status: 400 });
+    }
+
+    const imagesError = validateProductImages(images);
+
+    if (imagesError) {
+      return new NextResponse(imagesError, { status: 400 });
     }
 
     if (!price) {
@@ -82,9 +89,7 @@ export async function POST(
         storeId: params.storeId,
         images: {
           createMany: {
-            data: [
-              ...images.map((image: { url: string }) => image),
-            ],
+            data: toImageRows(images),
           },
         },
       },
@@ -155,7 +160,7 @@ export async function GET(
         AND: buildProductSearchFilter(searchTerms),
       },
       include: {
-        images: true,
+        images: { orderBy: [...PRODUCT_IMAGE_ORDER] },
         category: true,
         color: true,
         size: true,

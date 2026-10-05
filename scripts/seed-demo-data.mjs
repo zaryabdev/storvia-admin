@@ -241,7 +241,7 @@ async function seedStoreData(tx, storeId) {
                 categoryId: categories.get(p.category).id,
                 sizeId: sizes.get(p.size).id,
                 colorId: colors.get(p.color).id,
-                images: { create: imagesForProduct(index).map((url) => ({ url })) },
+                images: { create: imagesForProduct(index).map((url, position) => ({ url, position })) },
             },
         });
         created += 1;

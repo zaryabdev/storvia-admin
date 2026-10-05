@@ -346,6 +346,8 @@ model Image {
   id        String   @id @default(uuid())
   productId String
   url       String
+  // Merchant-chosen order (0 = cover). Legacy rows are all 0; ties break by createdAt.
+  position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
