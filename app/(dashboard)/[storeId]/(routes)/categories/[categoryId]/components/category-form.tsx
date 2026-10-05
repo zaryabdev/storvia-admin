@@ -24,6 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Heading } from "@/components/ui/heading"
 import { AlertModal } from "@/components/modals/alert-modal"
+import { CategoryIconPicker } from "@/components/category-icon-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const NONE_VALUE = "none";
@@ -32,6 +33,7 @@ const formSchema = z.object({
   name: z.string().min(2),
   billboardId: z.string(),
   parentId: z.string(),
+  iconKey: z.string(),
 }).superRefine((data, ctx) => {
   if (data.parentId === NONE_VALUE && data.billboardId === NONE_VALUE) {
     ctx.addIssue({
@@ -74,10 +76,12 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
       name: initialData.name,
       billboardId: initialData.billboardId || NONE_VALUE,
       parentId: initialData.parentId || NONE_VALUE,
+      iconKey: initialData.iconKey ?? '',
     } : {
       name: '',
       billboardId: NONE_VALUE,
       parentId: NONE_VALUE,
+      iconKey: '',
     }
   });
 
@@ -88,6 +92,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
         name: data.name,
         billboardId: data.billboardId === NONE_VALUE ? null : data.billboardId,
         parentId: data.parentId === NONE_VALUE ? null : data.parentId,
+        iconKey: data.iconKey || null,
       };
       if (initialData) {
         await axios.patch(`/api/${params.storeId}/categories/${params.categoryId}`, payload);
@@ -209,6 +214,26 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
               )}
             />
           </div>
+          <FormField
+            control={form.control}
+            name="iconKey"
+            render={({ field }) => (
+              <FormItem className="min-w-0">
+                <FormLabel>Icon (optional)</FormLabel>
+                <FormControl>
+                  <CategoryIconPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={loading}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Shown before the category name in your Storefront.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <Button disabled={loading} className="w-full sm:ml-auto sm:w-auto" type="submit">
             {action}
           </Button>

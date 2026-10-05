@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
 import { findForeignReference } from "@/lib/store-scope";
+import { isCategoryIconKey } from "@/lib/category-icons";
 
 export async function GET(
   req: Request,
@@ -105,7 +106,7 @@ export async function PATCH(
 
     const body = await req.json();
 
-    const { name, billboardId, parentId } = body;
+    const { name, billboardId, parentId, iconKey } = body;
 
     const normalizedBillboardId: string | null = billboardId || null;
     const normalizedParentId: string | null = parentId || null;
@@ -116,6 +117,17 @@ export async function PATCH(
 
     if (!name) {
       return new NextResponse("Name is required", { status: 400 });
+    }
+
+    // Optional curated icon: null / "" / omitted = no icon.
+    let normalizedIconKey: string | null = null;
+
+    if (iconKey !== undefined && iconKey !== null && iconKey !== "") {
+      if (!isCategoryIconKey(iconKey)) {
+        return new NextResponse("Invalid icon", { status: 400 });
+      }
+
+      normalizedIconKey = iconKey;
     }
 
     if (!params.categoryId) {
@@ -188,6 +200,7 @@ export async function PATCH(
         name,
         billboardId: normalizedBillboardId,
         parentId: normalizedParentId,
+        iconKey: normalizedIconKey,
       }
     });
   
