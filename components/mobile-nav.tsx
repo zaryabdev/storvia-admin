@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { MainNav } from "@/components/main-nav";
 import StoreSwitcher from "@/components/store-switcher";
+import { StorviaLogo } from "@/components/storvia-logo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +35,7 @@ export function MobileNav({ stores }: MobileNavProps) {
         className="left-0 top-0 h-[100dvh] max-h-[100dvh] w-[min(20rem,85vw)] max-w-[85vw] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-6 sm:max-w-sm sm:rounded-none"
       >
         <DialogHeader className="text-left">
+          <StorviaLogo className="mb-2" />
           <DialogTitle>Store navigation</DialogTitle>
           <DialogDescription className="sr-only">
             Navigate your store administration pages.
