@@ -11,7 +11,7 @@ export async function PATCH(
         const { userId } = auth();
         const body = await req.json();
 
-        const { name, logoUrl } = body;
+        const { name, logoUrl, faviconUrl } = body;
 
         if (!userId) {
             return new NextResponse("Unauthenticated", { status: 403 });
@@ -38,9 +38,14 @@ export async function PATCH(
                 ? logoUrl.trim()
                 : null;
 
+        const normalizedFaviconUrl =
+            typeof faviconUrl === "string" && faviconUrl.trim() !== ""
+                ? faviconUrl.trim()
+                : null;
+
         const store = await prismadb.store.update({
             where: { id: params.storeId },
-            data: { name, logoUrl: normalizedLogoUrl },
+            data: { name, logoUrl: normalizedLogoUrl, faviconUrl: normalizedFaviconUrl },
         });
 
         return NextResponse.json(store);
@@ -94,6 +99,7 @@ export async function GET(
                 id: true,
                 name: true,
                 logoUrl: true,
+                faviconUrl: true,
             },
         });
 

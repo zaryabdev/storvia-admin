@@ -12,13 +12,17 @@ interface ImageUploadProps {
   onChange: (value: string) => void;
   onRemove: (value: string) => void;
   value: string[];
+  // Optional Cloudinary format allow-list (e.g. ["png", "ico", "svg"]).
+  // Omitted => the widget's default (any image).
+  allowedFormats?: string[];
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
   disabled,
   onChange,
   onRemove,
-  value
+  value,
+  allowedFormats
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -56,7 +60,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
         ))}
       </div>
-      <CldUploadWidget onUpload={onUpload} uploadPreset="tbck4c3k">
+      <CldUploadWidget
+        onUpload={onUpload}
+        uploadPreset="tbck4c3k"
+        options={allowedFormats ? { clientAllowedFormats: allowedFormats } : undefined}
+      >
         {({ open }) => {
           const onClick = () => {
             open();

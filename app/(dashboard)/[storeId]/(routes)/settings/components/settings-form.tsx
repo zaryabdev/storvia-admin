@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import {
     Form,
     FormControl,
+    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -30,6 +31,10 @@ import { useOrigin } from "@/hooks/use-origin";
 const formSchema = z.object({
     name: z.string().min(2),
     logoUrl: z.preprocess(
+        (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+        z.string().url().optional(),
+    ),
+    faviconUrl: z.preprocess(
         (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
         z.string().url().optional(),
     ),
@@ -54,6 +59,7 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {
         defaultValues: {
             name: initialData.name,
             logoUrl: initialData.logoUrl ?? "",
+            faviconUrl: initialData.faviconUrl ?? "",
         },
     });
     const onSubmit = async (data: SettingsFormValues) => {
@@ -128,6 +134,28 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {
                                         onRemove={() => field.onChange("")}
                                     />
                                 </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="faviconUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Favicon</FormLabel>
+                                <FormControl>
+                                    <ImageUpload
+                                        value={field.value ? [field.value] : []}
+                                        disabled={loading}
+                                        allowedFormats={["png", "ico", "svg"]}
+                                        onChange={(url) => field.onChange(url)}
+                                        onRemove={() => field.onChange("")}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    Shown in the browser tab of your Storefront. Use a square image (PNG or ICO), at least 512×512.
+                                </FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
