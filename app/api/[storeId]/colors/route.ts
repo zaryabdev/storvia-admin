@@ -15,7 +15,7 @@ export async function POST(
     const { name, value } = body;
 
     if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+      return new NextResponse("Unauthenticated", { status: 401 });
     }
 
     if (!name) {
@@ -38,7 +38,7 @@ export async function POST(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const color = await prismadb.color.create({

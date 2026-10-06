@@ -42,7 +42,7 @@ export async function DELETE(
     const { userId } = auth();
 
     if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+      return new NextResponse("Unauthenticated", { status: 401 });
     }
 
     if (!params.sizeId) {
@@ -57,7 +57,7 @@ export async function DELETE(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     if (!(await existsInStore("size", params.sizeId, params.storeId))) {
@@ -96,7 +96,7 @@ export async function PATCH(
     const { name, value } = body;
 
     if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+      return new NextResponse("Unauthenticated", { status: 401 });
     }
 
     if (!name) {
@@ -120,7 +120,7 @@ export async function PATCH(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     if (!(await existsInStore("size", params.sizeId, params.storeId))) {

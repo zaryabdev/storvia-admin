@@ -1,46 +1,17 @@
-import { Decimal } from "@prisma/client/runtime/library";
-
-import { getStoreSalesOrders } from "@/lib/store-sales";
+import { bucketMonthlyRevenue, getGraphWindow, getStoreSalesOrders } from "@/lib/store-sales";
 
 interface GraphData {
   name: string;
   total: number;
 }
 
+// Last 12 UTC calendar months ending with the current one, by confirmedAt
+// (createdAt for legacy orders without it). Rule: DECISIONS.md "Sales metrics".
 export const getGraphRevenue = async (storeId: string): Promise<GraphData[]> => {
-  // Eligible orders (CONFIRMED + DELIVERED) with their exact Decimal amounts.
-  const salesOrders = await getStoreSalesOrders(storeId);
+  const now = new Date();
+  const { start, end } = getGraphWindow(now);
 
-  const monthlyRevenue: { [key: number]: Decimal } = {};
+  const salesOrders = await getStoreSalesOrders(storeId, start, end);
 
-  // Grouping the orders by month and summing the revenue
-  for (const order of salesOrders) {
-    const month = order.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-
-    // Adding the revenue for this order to the respective month
-    monthlyRevenue[month] = monthlyRevenue[month] ? monthlyRevenue[month].plus(order.amount) : order.amount;
-  }
-
-  // Converting the grouped data into the format expected by the graph
-  const graphData: GraphData[] = [
-    { name: "Jan", total: 0 },
-    { name: "Feb", total: 0 },
-    { name: "Mar", total: 0 },
-    { name: "Apr", total: 0 },
-    { name: "May", total: 0 },
-    { name: "Jun", total: 0 },
-    { name: "Jul", total: 0 },
-    { name: "Aug", total: 0 },
-    { name: "Sep", total: 0 },
-    { name: "Oct", total: 0 },
-    { name: "Nov", total: 0 },
-    { name: "Dec", total: 0 },
-  ];
-
-  // Filling in the revenue data
-  for (const month in monthlyRevenue) {
-    graphData[parseInt(month)].total = monthlyRevenue[parseInt(month)].toNumber();
-  }
-
-  return graphData;
+  return bucketMonthlyRevenue(salesOrders, now);
 };

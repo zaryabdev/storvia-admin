@@ -53,7 +53,7 @@ export async function DELETE(
     const { userId } = auth();
 
     if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+      return new NextResponse("Unauthenticated", { status: 401 });
     }
 
     if (!params.productId) {
@@ -68,7 +68,7 @@ export async function DELETE(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     if (!(await existsInStore("product", params.productId, params.storeId))) {
@@ -107,7 +107,7 @@ export async function PATCH(
     const { name, price, quantity, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
 
     if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+      return new NextResponse("Unauthenticated", { status: 401 });
     }
 
     if (!params.productId) {
@@ -156,7 +156,7 @@ export async function PATCH(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     // Ownership is confirmed before any write, including the image reset.

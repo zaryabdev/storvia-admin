@@ -20,7 +20,7 @@ export async function POST(
     const normalizedParentId: string | null = parentId || null;
 
     if (!userId) {
-      return new NextResponse("Unauthenticated", { status: 403 });
+      return new NextResponse("Unauthenticated", { status: 401 });
     }
 
     if (!name) {
@@ -50,7 +50,7 @@ export async function POST(
     });
 
     if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     if (normalizedParentId) {

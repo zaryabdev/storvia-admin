@@ -98,24 +98,76 @@ export async function getStoreSalesTotal(storeId: string): Promise<Decimal> {
   return total;
 }
 
-/** Each eligible PKR order's creation date and exact amount. */
+export const GRAPH_MONTHS = 12;
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** UTC window of the revenue graph: the last 12 calendar months ending with `now`'s month. */
+export function getGraphWindow(now: Date): { start: Date; end: Date } {
+  return {
+    start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (GRAPH_MONTHS - 1), 1)),
+    end: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
+  };
+}
+
+/**
+ * Buckets orders into exactly 12 chronological UTC months ending with `now`'s
+ * month, zero-filled, labelled like "Jan 26". Orders outside the window are
+ * ignored. `date` is Order.confirmedAt, or createdAt for legacy orders.
+ */
+export function bucketMonthlyRevenue(
+  orders: Array<{ date: Date; amount: Decimal }>,
+  now: Date
+): Array<{ name: string; total: number }> {
+  const { start } = getGraphWindow(now);
+  const totals: Decimal[] = Array.from({ length: GRAPH_MONTHS }, () => new PreciseDecimal(0) as Decimal);
+
+  for (const order of orders) {
+    const index =
+      (order.date.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+      (order.date.getUTCMonth() - start.getUTCMonth());
+
+    if (index >= 0 && index < GRAPH_MONTHS) {
+      totals[index] = totals[index].plus(order.amount);
+    }
+  }
+
+  return totals.map((total, i) => {
+    const month = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1));
+    const year = String(month.getUTCFullYear()).slice(-2);
+    return { name: `${MONTH_NAMES[month.getUTCMonth()]} ${year}`, total: total.toNumber() };
+  });
+}
+
+/**
+ * Eligible PKR orders dated inside [start, end) with their exact amounts. The
+ * date is confirmedAt, or createdAt only when confirmedAt is null (legacy).
+ */
 export async function getStoreSalesOrders(
-  storeId: string
-): Promise<Array<{ createdAt: Date; amount: Decimal }>> {
-  const where = salesOrderWhere(storeId);
+  storeId: string,
+  start: Date,
+  end: Date
+): Promise<Array<{ date: Date; amount: Decimal }>> {
+  const where = {
+    ...salesOrderWhere(storeId),
+    OR: [
+      { confirmedAt: { gte: start, lt: end } },
+      { confirmedAt: null, createdAt: { gte: start, lt: end } },
+    ],
+  } satisfies Prisma.OrderWhereInput;
 
   const [snapshotOrders, legacyOrders] = await Promise.all([
     prismadb.order.findMany({
       where: { ...where, total: { not: null } },
-      select: { currency: true, createdAt: true, total: true },
+      select: { currency: true, createdAt: true, confirmedAt: true, total: true },
     }),
     prismadb.order.findMany({
       where: { ...where, total: null },
-      select: legacyOrderSelect,
+      select: { ...legacyOrderSelect, confirmedAt: true },
     }),
   ]);
 
-  const orders: Array<{ createdAt: Date; amount: Decimal }> = [];
+  const orders: Array<{ date: Date; amount: Decimal }> = [];
   const otherCurrencies = new Set<string>();
 
   for (const order of snapshotOrders) {
@@ -123,7 +175,10 @@ export async function getStoreSalesOrders(
       otherCurrencies.add(order.currency!);
       continue;
     }
-    orders.push({ createdAt: order.createdAt, amount: new PreciseDecimal(order.total!) });
+    orders.push({
+      date: order.confirmedAt ?? order.createdAt,
+      amount: new PreciseDecimal(order.total!),
+    });
   }
 
   for (const order of legacyOrders) {
@@ -131,7 +186,10 @@ export async function getStoreSalesOrders(
       otherCurrencies.add(order.currency!);
       continue;
     }
-    orders.push({ createdAt: order.createdAt, amount: legacyOrderTotal(order.orderItems) });
+    orders.push({
+      date: order.confirmedAt ?? order.createdAt,
+      amount: legacyOrderTotal(order.orderItems),
+    });
   }
 
   warnOtherCurrencies(storeId, otherCurrencies);

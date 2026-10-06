@@ -66,7 +66,13 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {
     const onSubmit = async (data: SettingsFormValues) => {
         try {
             setLoading(true);
-            await axios.patch(`/api/stores/${params.storeId}`, data);
+            // A cleared field arrives as undefined; send null so the server clears
+            // it (an omitted field means "leave unchanged").
+            await axios.patch(`/api/stores/${params.storeId}`, {
+                name: data.name,
+                logoUrl: data.logoUrl ?? null,
+                faviconUrl: data.faviconUrl ?? null,
+            });
             router.refresh();
             toast.success("Store updated.");
         } catch (error: any) {

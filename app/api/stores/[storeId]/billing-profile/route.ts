@@ -14,9 +14,9 @@ function normalize(value: unknown) {
 
 export async function GET(_req: Request, { params }: { params: { storeId: string } }) {
   const { userId } = auth();
-  if (!userId) return new NextResponse("Unauthenticated", { status: 403 });
+  if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
   const store = await prismadb.store.findFirst({ where: { id: params.storeId, userId }, select: { id: true } });
-  if (!store) return new NextResponse("Unauthorized", { status: 405 });
+  if (!store) return new NextResponse("Forbidden", { status: 403 });
   const profile = await prismadb.storeBillingProfile.findUnique({ where: { storeId: store.id } });
   return NextResponse.json(profile);
 }
@@ -24,9 +24,9 @@ export async function GET(_req: Request, { params }: { params: { storeId: string
 export async function PATCH(req: Request, { params }: { params: { storeId: string } }) {
   try {
     const { userId } = auth();
-    if (!userId) return new NextResponse("Unauthenticated", { status: 403 });
+    if (!userId) return new NextResponse("Unauthenticated", { status: 401 });
     const store = await prismadb.store.findFirst({ where: { id: params.storeId, userId }, select: { id: true } });
-    if (!store) return new NextResponse("Unauthorized", { status: 405 });
+    if (!store) return new NextResponse("Forbidden", { status: 403 });
     const body = await req.json();
     const data: Record<string, unknown> = {};
     for (const field of fields) if (Object.prototype.hasOwnProperty.call(body, field)) data[field] = normalize(body[field]);

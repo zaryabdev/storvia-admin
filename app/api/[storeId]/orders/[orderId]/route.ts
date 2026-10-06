@@ -37,7 +37,7 @@ export async function PATCH(
         const { userId } = auth();
 
         if (!userId) {
-            return new NextResponse("Unauthenticated", { status: 403 });
+            return new NextResponse("Unauthenticated", { status: 401 });
         }
 
         const storeByUserId = await prismadb.store.findFirst({
@@ -48,7 +48,7 @@ export async function PATCH(
         });
 
         if (!storeByUserId) {
-            return new NextResponse("Unauthorized", { status: 405 });
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const { status } = await req.json();

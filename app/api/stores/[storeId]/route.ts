@@ -4,6 +4,46 @@ import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
 import { storeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 
+const MAX_URL_LENGTH = 2048;
+
+type UrlField = { present: boolean; value: string | null; valid: boolean };
+
+// Omitted (undefined) = leave unchanged. null or "" (after trim) = clear.
+// Otherwise a string holding an https: URL of at most 2048 characters.
+function readUrlField(raw: unknown): UrlField {
+    if (raw === undefined) {
+        return { present: false, value: null, valid: true };
+    }
+
+    if (raw === null) {
+        return { present: true, value: null, valid: true };
+    }
+
+    if (typeof raw !== "string") {
+        return { present: true, value: null, valid: false };
+    }
+
+    const trimmed = raw.trim();
+
+    if (trimmed === "") {
+        return { present: true, value: null, valid: true };
+    }
+
+    if (trimmed.length > MAX_URL_LENGTH) {
+        return { present: true, value: null, valid: false };
+    }
+
+    try {
+        if (new URL(trimmed).protocol !== "https:") {
+            return { present: true, value: null, valid: false };
+        }
+    } catch {
+        return { present: true, value: null, valid: false };
+    }
+
+    return { present: true, value: trimmed, valid: true };
+}
+
 export async function PATCH(
     req: Request,
     { params }: { params: { storeId: string } },
@@ -15,7 +55,7 @@ export async function PATCH(
         const { name, logoUrl, faviconUrl } = body;
 
         if (!userId) {
-            return new NextResponse("Unauthenticated", { status: 403 });
+            return new NextResponse("Unauthenticated", { status: 401 });
         }
 
         if (!name) {
@@ -31,22 +71,27 @@ export async function PATCH(
         });
 
         if (!storeByUserId) {
-            return new NextResponse("Unauthorized", { status: 405 });
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
-        const normalizedLogoUrl =
-            typeof logoUrl === "string" && logoUrl.trim() !== ""
-                ? logoUrl.trim()
-                : null;
+        const logo = readUrlField(logoUrl);
+        const favicon = readUrlField(faviconUrl);
 
-        const normalizedFaviconUrl =
-            typeof faviconUrl === "string" && faviconUrl.trim() !== ""
-                ? faviconUrl.trim()
-                : null;
+        if (!logo.valid) {
+            return new NextResponse("Invalid logo URL", { status: 400 });
+        }
+
+        if (!favicon.valid) {
+            return new NextResponse("Invalid favicon URL", { status: 400 });
+        }
 
         const store = await prismadb.store.update({
             where: { id: params.storeId },
-            data: { name, logoUrl: normalizedLogoUrl, faviconUrl: normalizedFaviconUrl },
+            data: {
+                name,
+                ...(logo.present && { logoUrl: logo.value }),
+                ...(favicon.present && { faviconUrl: favicon.value }),
+            },
         });
 
         return NextResponse.json(store);
@@ -64,7 +109,7 @@ export async function DELETE(
         const { userId } = auth();
 
         if (!userId) {
-            return new NextResponse("Unauthenticated", { status: 403 });
+            return new NextResponse("Unauthenticated", { status: 401 });
         }
 
         if (!params.storeId) {
@@ -82,7 +127,7 @@ export async function DELETE(
 
         // Same response the PATCH gives a non-owner.
         if (existingStore.userId !== userId) {
-            return new NextResponse("Unauthorized", { status: 405 });
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const inUse = await storeInUseMessage(params.storeId);

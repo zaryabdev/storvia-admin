@@ -44,7 +44,7 @@ export async function PATCH(
         const { billboardId } = body;
 
         if (!userId) {
-            return new NextResponse("Unauthenticated", { status: 403 });
+            return new NextResponse("Unauthenticated", { status: 401 });
         }
 
         if (!params.storeId) {
@@ -63,7 +63,7 @@ export async function PATCH(
         });
 
         if (!storeByUserId) {
-            return new NextResponse("Unauthorized", { status: 405 });
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         if (billboardId === null) {
