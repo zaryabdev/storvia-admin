@@ -4,8 +4,8 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { PreciseDecimal } from "@/lib/decimal";
 import prismadb from "@/lib/prismadb";
 
-// Merchant dashboard sales metrics. Same semantics as Super Admin salesTotal
-// (app/api/super-admin/stores/route.ts) — see DECISIONS.md "Sales metrics":
+// The single implementation of the sales rule, used by the merchant dashboard
+// and the Super Admin routes — see DECISIONS.md "Sales metrics":
 //  - eligible orders: this Store's CONFIRMED + DELIVERED orders; isPaid is
 //    never used (COD never sets it);
 //  - amount: the stored Order.total snapshot; only legacy orders with a NULL
@@ -58,44 +58,141 @@ export async function getStoreSalesCount(storeId: string): Promise<number> {
   return prismadb.order.count({ where: salesOrderWhere(storeId) });
 }
 
-/** Exact PKR sales total of the Store's eligible orders. */
-export async function getStoreSalesTotal(storeId: string): Promise<Decimal> {
-  const where = salesOrderWhere(storeId);
+type SnapshotGroup = { storeId: string; currency: string | null; total: Decimal | null };
+type LegacySalesOrder = {
+  storeId: string;
+  currency: string | null;
+  orderItems: Array<{ quantity: number; product: { price: Decimal } }>;
+};
+
+/** storeId -> currency -> exact total. A NULL currency is PKR. */
+export type SalesByStore = Map<string, Map<string, Decimal>>;
+
+/**
+ * Pure aggregation: snapshot totals (already summed per Store + currency) plus
+ * legacy orders (NULL total, priced from the Products).
+ */
+export function aggregateSales(
+  snapshotGroups: SnapshotGroup[],
+  legacyOrders: LegacySalesOrder[]
+): SalesByStore {
+  const byStore: SalesByStore = new Map();
+
+  const add = (storeId: string, currency: string | null, amount: Decimal) => {
+    const code = currency ?? DASHBOARD_CURRENCY;
+    let byCurrency = byStore.get(storeId);
+    if (!byCurrency) {
+      byCurrency = new Map();
+      byStore.set(storeId, byCurrency);
+    }
+    byCurrency.set(code, (byCurrency.get(code) ?? new PreciseDecimal(0)).plus(amount));
+  };
+
+  for (const group of snapshotGroups) {
+    add(group.storeId, group.currency, new PreciseDecimal(group.total ?? 0));
+  }
+
+  for (const order of legacyOrders) {
+    add(order.storeId, order.currency, legacyOrderTotal(order.orderItems));
+  }
+
+  return byStore;
+}
+
+/**
+ * Per-Store, per-currency sales totals of eligible orders. Always two queries,
+ * however many Stores: pass `storeIds` to restrict, omit for every Store.
+ */
+export async function getSalesByStore(storeIds?: string[]): Promise<SalesByStore> {
+  const where = {
+    status: { in: [...SALES_STATUSES] },
+    ...(storeIds && { storeId: { in: storeIds } }),
+  } satisfies Prisma.OrderWhereInput;
 
   const [snapshotGroups, legacyOrders] = await Promise.all([
     prismadb.order.groupBy({
-      by: ["currency"],
+      by: ["storeId", "currency"],
       where: { ...where, total: { not: null } },
       _sum: { total: true },
     }),
     prismadb.order.findMany({
       where: { ...where, total: null },
-      select: legacyOrderSelect,
+      select: {
+        storeId: true,
+        currency: true,
+        orderItems: { select: { quantity: true, product: { select: { price: true } } } },
+      },
     }),
   ]);
 
-  let total: Decimal = new PreciseDecimal(0);
-  const otherCurrencies = new Set<string>();
+  return aggregateSales(
+    snapshotGroups.map((g) => ({ storeId: g.storeId, currency: g.currency, total: g._sum.total })),
+    legacyOrders
+  );
+}
 
-  for (const group of snapshotGroups) {
-    if (!isDashboardCurrency(group.currency)) {
-      otherCurrencies.add(group.currency!);
-      continue;
-    }
-    total = total.plus(new PreciseDecimal(group._sum.total ?? 0));
+/** One Store's per-currency sales totals (empty when it has no eligible orders). */
+export async function getStoreSalesByCurrency(storeId: string): Promise<Map<string, Decimal>> {
+  return (await getSalesByStore([storeId])).get(storeId) ?? new Map();
+}
+
+/**
+ * Super Admin currency policy: a Store's sales are in one currency (PKR with
+ * zero sales when it has none); more than one throws, never summed.
+ */
+export function singleCurrencySales(
+  storeId: string,
+  byCurrency: Map<string, Decimal> | undefined
+): { currency: string; total: Decimal } {
+  if (byCurrency && byCurrency.size > 1) {
+    throw new Error(
+      `Mixed currencies in store ${storeId}: ${Array.from(byCurrency.keys()).join(", ")}`
+    );
   }
 
-  for (const order of legacyOrders) {
-    if (!isDashboardCurrency(order.currency)) {
-      otherCurrencies.add(order.currency!);
-      continue;
-    }
-    total = total.plus(legacyOrderTotal(order.orderItems));
-  }
+  const [currency, total] = byCurrency?.size
+    ? Array.from(byCurrency.entries())[0]
+    : [DASHBOARD_CURRENCY, new PreciseDecimal(0) as Decimal];
+
+  return { currency, total };
+}
+
+/** Dashboard currency policy: PKR only; other currencies are excluded and logged. */
+export function dashboardSales(storeId: string, byCurrency: Map<string, Decimal>): Decimal {
+  const otherCurrencies = new Set(
+    Array.from(byCurrency.keys()).filter((currency) => currency !== DASHBOARD_CURRENCY)
+  );
 
   warnOtherCurrencies(storeId, otherCurrencies);
 
-  return total;
+  return byCurrency.get(DASHBOARD_CURRENCY) ?? new PreciseDecimal(0);
+}
+
+/** Exact PKR sales total of the Store's eligible orders. */
+export async function getStoreSalesTotal(storeId: string): Promise<Decimal> {
+  return dashboardSales(storeId, await getStoreSalesByCurrency(storeId));
+}
+
+/**
+ * Legacy fallback totals (Product.price x OrderItem.quantity) for the given
+ * orders, in one query. Orders without items are missing from the map.
+ */
+export async function getLegacyOrderTotals(orderIds: string[]): Promise<Map<string, Decimal>> {
+  if (orderIds.length === 0) {
+    return new Map();
+  }
+
+  const items = await prismadb.orderItem.findMany({
+    where: { orderId: { in: orderIds } },
+    select: { orderId: true, quantity: true, product: { select: { price: true } } },
+  });
+
+  const byOrder = new Map<string, typeof items>();
+  for (const item of items) {
+    byOrder.set(item.orderId, [...(byOrder.get(item.orderId) ?? []), item]);
+  }
+
+  return new Map(Array.from(byOrder, ([orderId, lines]) => [orderId, legacyOrderTotal(lines)]));
 }
 
 export const GRAPH_MONTHS = 12;

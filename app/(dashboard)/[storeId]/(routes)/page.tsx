@@ -1,4 +1,4 @@
-import { CreditCard, DollarSign, Package } from "lucide-react";
+import { Banknote, CreditCard, Package } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
 import { Overview } from "@/components/overview";
@@ -35,7 +35,7 @@ const DashboardPage: React.FC<DashboardPageProps> = async ({
               <CardTitle className="min-w-0 break-words text-sm font-medium">
                 Total Revenue
               </CardTitle>
-              <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Banknote className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="min-w-0 break-words text-2xl font-bold [overflow-wrap:anywhere]">

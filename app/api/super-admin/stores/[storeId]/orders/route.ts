@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
-import { Decimal } from "@prisma/client/runtime/library";
 
 import prismadb from "@/lib/prismadb";
+import { PreciseDecimal } from "@/lib/decimal";
+import { getLegacyOrderTotals } from "@/lib/store-sales";
 
 export const dynamic = "force-dynamic";
 
@@ -78,36 +79,17 @@ export async function GET(
       }),
     ]);
 
-    // Legacy orders (total IS NULL) only: fetch item prices for this page in
-    // one query, not one per order.
-    const legacyIds = rows.filter((r) => r.total === null).map((r) => r.id);
-    const legacyTotals = new Map<string, Decimal>();
-
-    if (legacyIds.length > 0) {
-      const items = await prismadb.orderItem.findMany({
-        where: { orderId: { in: legacyIds } },
-        select: {
-          orderId: true,
-          quantity: true,
-          product: { select: { price: true } },
-        },
-      });
-
-      for (const item of items) {
-        legacyTotals.set(
-          item.orderId,
-          (legacyTotals.get(item.orderId) ?? new Decimal(0)).plus(
-            new Decimal(item.product.price).times(item.quantity)
-          )
-        );
-      }
-    }
+    // Legacy orders (total IS NULL) only: priced from the Products, in one
+    // query for the page (shared fallback in lib/store-sales.ts).
+    const legacyTotals = await getLegacyOrderTotals(
+      rows.filter((r) => r.total === null).map((r) => r.id)
+    );
 
     const orders = rows.map((order) => {
       const total =
         order.total !== null
-          ? new Decimal(order.total)
-          : legacyTotals.get(order.id) ?? new Decimal(0);
+          ? new PreciseDecimal(order.total)
+          : legacyTotals.get(order.id) ?? new PreciseDecimal(0);
 
       return {
         id: order.id,
