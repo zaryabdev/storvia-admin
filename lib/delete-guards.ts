@@ -48,6 +48,9 @@ export async function billboardInUseMessage(
   return null;
 }
 
+// A billboard button linking to the category does not block the delete: the
+// route clears the button (ctaCategoryId is ON DELETE SET NULL, and the route
+// nulls ctaLabel in the same transaction).
 export async function categoryInUseMessage(
   categoryId: string,
 ): Promise<string | null> {

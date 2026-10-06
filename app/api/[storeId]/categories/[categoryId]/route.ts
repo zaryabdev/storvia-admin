@@ -76,11 +76,20 @@ export async function DELETE(
       return inUseResponse(inUse);
     }
 
-    const category = await prismadb.category.delete({
-      where: {
-        id: params.categoryId,
-      }
-    });
+    // Billboard buttons linking here go away with the category: the FK sets
+    // ctaCategoryId to null; the label is cleared in the same transaction so
+    // the button stays all-or-nothing.
+    const [, category] = await prismadb.$transaction([
+      prismadb.billboard.updateMany({
+        where: { ctaCategoryId: params.categoryId },
+        data: { ctaLabel: null },
+      }),
+      prismadb.category.delete({
+        where: {
+          id: params.categoryId,
+        }
+      }),
+    ]);
   
     return NextResponse.json(category);
   } catch (error) {

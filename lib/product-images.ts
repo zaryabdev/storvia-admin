@@ -9,15 +9,20 @@ export const PRODUCT_IMAGE_ORDER = [
 ] as const;
 
 // Returns an error message, or null when `images` is a valid ordered list
-// (an array of at most 8 entries, each with a non-empty https `url`).
+// (an array of at most `max` entries, each with a non-empty https `url`).
+// `noun` names the owner in the limit message ("product", "billboard").
 // Presence/minimum checks stay in the routes.
-export function validateProductImages(images: unknown): string | null {
+export function validateImageList(
+  images: unknown,
+  max: number,
+  noun: string,
+): string | null {
   if (!Array.isArray(images)) {
     return "Images must be an array";
   }
 
-  if (images.length > MAX_PRODUCT_IMAGES) {
-    return `A product can have at most ${MAX_PRODUCT_IMAGES} images`;
+  if (images.length > max) {
+    return `A ${noun} can have at most ${max} images`;
   }
 
   for (const image of images) {
@@ -37,6 +42,11 @@ export function validateProductImages(images: unknown): string | null {
   }
 
   return null;
+}
+
+// Products: at most 8 images.
+export function validateProductImages(images: unknown): string | null {
+  return validateImageList(images, MAX_PRODUCT_IMAGES, "product");
 }
 
 // Rows to create: only `url`, with `position` = index in the submitted array.

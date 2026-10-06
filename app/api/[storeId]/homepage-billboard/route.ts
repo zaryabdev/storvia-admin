@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { BILLBOARD_INCLUDE } from "@/lib/billboard";
 
 export async function GET(
     req: Request,
@@ -17,7 +18,7 @@ export async function GET(
                 id: params.storeId,
             },
             include: {
-                homepageBillboard: true,
+                homepageBillboard: { include: BILLBOARD_INCLUDE },
             },
         });
 

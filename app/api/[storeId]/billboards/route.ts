@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { parseBillboardBody } from "@/lib/billboard";
+import { findForeignReference } from "@/lib/store-scope";
 
 export async function POST(
     req: Request,
@@ -12,19 +14,17 @@ export async function POST(
 
         const body = await req.json();
 
-        const { label, imageUrl } = body;
-
         if (!userId) {
             return new NextResponse("Unauthenticated", { status: 401 });
         }
 
-        if (!label) {
-            return new NextResponse("Label is required", { status: 400 });
+        const parsed = parseBillboardBody(body);
+
+        if ("error" in parsed) {
+            return new NextResponse(parsed.error, { status: 400 });
         }
 
-        if (!imageUrl) {
-            return new NextResponse("Image URL is required", { status: 400 });
-        }
+        const { images, ...fields } = parsed.fields;
 
         if (!params.storeId) {
             return new NextResponse("Store id is required", { status: 400 });
@@ -41,11 +41,22 @@ export async function POST(
             return new NextResponse("Forbidden", { status: 403 });
         }
 
+        const foreignReference = await findForeignReference(params.storeId, {
+            categoryId: fields.ctaCategoryId,
+        });
+
+        if (foreignReference) {
+            return new NextResponse(foreignReference, { status: 400 });
+        }
+
+        // Photos are created in the submitted order (position = index).
         const billboard = await prismadb.billboard.create({
             data: {
-                label,
-                imageUrl,
+                ...fields,
                 storeId: params.storeId,
+                images: {
+                    createMany: { data: images },
+                },
             },
         });
 

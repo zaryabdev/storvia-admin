@@ -187,34 +187,64 @@ model PaymentEvidence {
 }
 
 model Billboard {
-  id                String     @id @default(uuid())
+  id                String           @id @default(uuid())
   storeId           String
   label             String
+  // Cover photo; always equal to the first BillboardImage.
   imageUrl          String
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  store             Store      @relation("StoreToBillboard", fields: [storeId], references: [id])
-  homepageForStores Store[]    @relation("StoreHomepageBillboard")
-  categories        Category[]
+  // Homepage-only presentation (category pages show imageUrl + label).
+  layout            BillboardLayout  @default(SPLIT)
+  subheading        String?
+  showSearch        Boolean          @default(true)
+  // Optional button: both set or both null. Links to a Category of this Store.
+  ctaLabel          String?
+  ctaCategoryId     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  store             Store            @relation("StoreToBillboard", fields: [storeId], references: [id])
+  homepageForStores Store[]          @relation("StoreHomepageBillboard")
+  categories        Category[]       @relation("CategoryBillboard")
+  ctaCategory       Category?        @relation("BillboardCtaCategory", fields: [ctaCategoryId], references: [id], onDelete: SetNull)
+  images            BillboardImage[]
 
   @@index([storeId])
+  @@index([ctaCategoryId])
+}
+
+model BillboardImage {
+  id          String    @id @default(uuid())
+  billboardId String
+  url         String
+  // Merchant-chosen order (0 = cover); ties break by createdAt.
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  billboard   Billboard @relation(fields: [billboardId], references: [id], onDelete: Cascade)
+
+  @@index([billboardId])
+}
+
+enum BillboardLayout {
+  SPLIT
+  FULL_BLEED
+  HEADING_LED
 }
 
 model Category {
-  id          String     @id @default(uuid())
-  storeId     String
-  billboardId String?
-  parentId    String?
-  name        String
+  id            String      @id @default(uuid())
+  storeId       String
+  billboardId   String?
+  parentId      String?
+  name          String
   // Curated icon key from lib/category-icons.ts (null = no icon).
-  iconKey     String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  billboard   Billboard? @relation(fields: [billboardId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  store       Store      @relation("StoreToCategory", fields: [storeId], references: [id])
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  children    Category[] @relation("CategoryHierarchy")
-  products    Product[]  @relation("CategoryToProduct")
+  iconKey       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  billboard     Billboard?  @relation("CategoryBillboard", fields: [billboardId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  store         Store       @relation("StoreToCategory", fields: [storeId], references: [id])
+  parent        Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  children      Category[]  @relation("CategoryHierarchy")
+  products      Product[]   @relation("CategoryToProduct")
+  ctaBillboards Billboard[] @relation("BillboardCtaCategory")
 
   @@index([storeId])
   @@index([billboardId])

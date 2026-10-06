@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
 import { billboardInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
-import { existsInStore } from "@/lib/store-scope";
+import { existsInStore, findForeignReference } from "@/lib/store-scope";
+import { BILLBOARD_INCLUDE, parseBillboardBody } from "@/lib/billboard";
 
 export async function GET(
     req: Request,
@@ -25,6 +26,7 @@ export async function GET(
                 id: params.billboardId,
                 storeId: params.storeId,
             },
+            include: BILLBOARD_INCLUDE,
         });
 
         if (!billboard) {
@@ -122,19 +124,17 @@ export async function PATCH(
 
         const body = await req.json();
 
-        const { label, imageUrl } = body;
-
         if (!userId) {
             return new NextResponse("Unauthenticated", { status: 401 });
         }
 
-        if (!label) {
-            return new NextResponse("Label is required", { status: 400 });
+        const parsed = parseBillboardBody(body);
+
+        if ("error" in parsed) {
+            return new NextResponse(parsed.error, { status: 400 });
         }
 
-        if (!imageUrl) {
-            return new NextResponse("Image URL is required", { status: 400 });
-        }
+        const { images, ...fields } = parsed.fields;
 
         if (!params.billboardId) {
             return new NextResponse("Billboard id is required", {
@@ -157,15 +157,30 @@ export async function PATCH(
             return new NextResponse("Billboard not found", { status: 404 });
         }
 
-        const billboard = await prismadb.billboard.update({
-            where: {
-                id: params.billboardId,
-            },
-            data: {
-                label,
-                imageUrl,
-            },
+        const foreignReference = await findForeignReference(params.storeId, {
+            categoryId: fields.ctaCategoryId,
         });
+
+        if (foreignReference) {
+            return new NextResponse(foreignReference, { status: 400 });
+        }
+
+        // One transaction: if any step fails, the old photos and fields stay.
+        // `imageUrl` (the cover) is the first photo.
+        const [billboard] = await prismadb.$transaction([
+            prismadb.billboard.update({
+                where: {
+                    id: params.billboardId,
+                },
+                data: fields,
+            }),
+            prismadb.billboardImage.deleteMany({
+                where: { billboardId: params.billboardId },
+            }),
+            prismadb.billboardImage.createMany({
+                data: images.map((image) => ({ ...image, billboardId: params.billboardId })),
+            }),
+        ]);
 
         return NextResponse.json(billboard);
     } catch (error) {

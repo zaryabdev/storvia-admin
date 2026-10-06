@@ -2,7 +2,7 @@ import { format } from "date-fns";
 
 import prismadb from "@/lib/prismadb";
 
-import { BillboardColumn } from "./components/columns"
+import { BillboardColumn, LAYOUT_LABELS } from "./components/columns"
 import { BillboardClient } from "./components/client";
 
 const BillboardsPage = async ({
@@ -16,6 +16,9 @@ const BillboardsPage = async ({
     },
     orderBy: {
       createdAt: 'desc'
+    },
+    include: {
+      _count: { select: { images: true } }
     }
   });
 
@@ -31,6 +34,9 @@ const BillboardsPage = async ({
   const formattedBillboards: BillboardColumn[] = billboards.map((item) => ({
     id: item.id,
     label: item.label,
+    layout: LAYOUT_LABELS[item.layout],
+    // Legacy rows without photo rows still have their cover.
+    photoCount: Math.max(item._count.images, 1),
     createdAt: format(item.createdAt, 'MMMM do, yyyy'),
     isHomepage: item.id === store?.homepageBillboardId,
   }));

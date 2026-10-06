@@ -17,16 +17,22 @@ interface MultiImageUploadProps {
   onChange: (urls: string[]) => void;
   disabled?: boolean;
   max?: number;
+  /** Helper line above the photos. Defaults to the product wording. */
+  hint?: string;
+  /** Alt text prefix for each thumbnail, e.g. "Billboard photo". */
+  photoLabel?: string;
 }
 
-// Product photo list with ordering. Reordering uses buttons, not drag and
-// drop. (The single-image ImageUpload used by billboards / logo / favicon is
-// unchanged.)
+// Ordered photo list for products (max 8) and billboards (max 5). Reordering
+// uses buttons, not drag and drop. (The single-image ImageUpload used by the
+// logo / favicon is unchanged.)
 const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
   value,
   onChange,
   disabled,
   max = MAX_PRODUCT_IMAGES,
+  hint,
+  photoLabel = "Product photo",
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -80,7 +86,7 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <p className="text-muted-foreground">
-          Up to {max} photos. The first photo is the cover shown in listings.
+          {hint ?? `Up to ${max} photos. The first photo is the cover shown in listings.`}
         </p>
         <p className="font-medium" aria-live="polite">
           {value.length} / {max}
@@ -94,7 +100,7 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
             return (
               <li key={`${url}-${index}`} className="min-w-0 space-y-2">
                 <div className="relative aspect-square w-full overflow-hidden rounded-md border">
-                  <Image fill className="object-cover" alt={`Product photo ${position}`} src={url} />
+                  <Image fill className="object-cover" alt={`${photoLabel} ${position}`} src={url} />
                   {index === 0 && (
                     <span className="absolute left-2 top-2 z-10 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
                       Cover

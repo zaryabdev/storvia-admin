@@ -223,6 +223,8 @@ async function seedStoreData(tx, storeId) {
             storeId,
             label: "New Season, Timeless Essentials",
             imageUrl: BILLBOARD_IMAGE_URL,
+            // imageUrl is the cover and always equals the first photo.
+            images: { create: [{ url: BILLBOARD_IMAGE_URL, position: 0 }] },
         },
     });
     await tx.store.update({ where: { id: storeId }, data: { homepageBillboardId: billboard.id } });
