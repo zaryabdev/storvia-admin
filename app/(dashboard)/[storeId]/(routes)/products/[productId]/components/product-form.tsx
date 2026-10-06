@@ -33,12 +33,26 @@ const formSchema = z.object({
   name: z.string().min(1),
   images: z.object({ url: z.string() }).array().min(1, "Add at least one image").max(8, "A product can have at most 8 photos."),
   price: z.coerce.number().min(1),
+  // "" = no sale price. The server (decimal-exact) is authoritative.
+  compareAtPrice: z.string().optional(),
   quantity: z.coerce.number().int().min(0),
   categoryId: z.string().min(1),
   colorId: z.string().min(1),
   sizeId: z.string().min(1),
   isFeatured: z.boolean().default(false).optional(),
   isArchived: z.boolean().default(false).optional()
+}).superRefine((values, ctx) => {
+  const raw = (values.compareAtPrice ?? '').trim();
+
+  if (raw === '') {
+    return;
+  }
+
+  const compareAt = Number(raw);
+
+  if (!/^\d+(\.\d+)?$/.test(raw) || !(compareAt > 0) || !(compareAt > values.price)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['compareAtPrice'], message: 'Must be higher than the price.' });
+  }
 });
 
 type ProductFormValues = z.infer<typeof formSchema>
@@ -92,10 +106,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const defaultValues = initialData ? {
     ...initialData,
     price: parseFloat(String(initialData?.price)),
+    compareAtPrice: initialData.compareAtPrice != null ? String(initialData.compareAtPrice) : '',
   } : {
     name: '',
     images: [],
     price: 0,
+    compareAtPrice: '',
     quantity: 0,
     categoryId: '',
     colorId: '',
@@ -109,7 +125,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     defaultValues
   });
 
-  const onSubmit = async (data: ProductFormValues) => {
+  const onSubmit = async (values: ProductFormValues) => {
+    // Blank = no sale price: sent as null so editing can clear it.
+    const data = { ...values, compareAtPrice: values.compareAtPrice?.trim() ? values.compareAtPrice.trim() : null };
+
     try {
       setLoading(true);
       if (initialData) {
@@ -206,6 +225,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   <FormControl>
                     <Input type="number" disabled={loading} placeholder="9.99" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="compareAtPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Compare-at price (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min="0" step="any" disabled={loading} placeholder="12.99" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormDescription>
+                    Shown crossed out to indicate a sale. Must be higher than the price.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

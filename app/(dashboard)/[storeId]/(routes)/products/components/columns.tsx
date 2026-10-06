@@ -2,12 +2,15 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 
+import { Badge } from "@/components/ui/badge"
+
 import { CellAction } from "./cell-action"
 
 export type ProductColumn = {
   id: string
   name: string;
   price: string;
+  isOnSale: boolean;
   category: string;
   size: string;
   color: string;
@@ -32,6 +35,12 @@ export const columns: ColumnDef<ProductColumn>[] = [
   {
     accessorKey: "price",
     header: "Price",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {row.original.price}
+        {row.original.isOnSale && <Badge variant="secondary">Sale</Badge>}
+      </div>
+    ),
   },
   {
     accessorKey: "category",

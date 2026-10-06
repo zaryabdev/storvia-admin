@@ -47,6 +47,7 @@ Architecture:
 - `prisma/schema.prisma` has a `directUrl` (`DATABASE_URL_UNPOOLED`) that comes from `.env`. When targeting another database, override **both** `DATABASE_URL` and `DATABASE_URL_UNPOOLED`, or Prisma silently uses the `.env` one.
 - The `next/font` Google Inter fetch can fail `npm run build` in restricted environments; say so rather than treating it as a code error.
 - Clerk, Cloudinary and Resend need real keys for the related features; see `.env.example`.
+- `next build` overwrites the `.next` folder used by a running `next dev`; stop the dev server first or build in an isolated copy.
 
 ## Updating docs
 

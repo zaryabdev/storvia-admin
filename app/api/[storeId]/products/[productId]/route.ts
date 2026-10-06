@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs";
 import prismadb from "@/lib/prismadb";
 import { productInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { existsInStore, findForeignReference } from "@/lib/store-scope";
+import { parseCompareAtPrice } from "@/lib/compare-at-price";
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from "@/lib/product-images";
 
 export async function GET(
@@ -104,7 +105,7 @@ export async function PATCH(
 
     const body = await req.json();
 
-    const { name, price, quantity, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
+    const { name, price, compareAtPrice, quantity, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 401 });
@@ -130,6 +131,13 @@ export async function PATCH(
 
     if (!price) {
       return new NextResponse("Price is required", { status: 400 });
+    }
+
+    // Missing = unchanged; null / "" = cleared; otherwise a decimal above price.
+    const compareAt = parseCompareAtPrice(compareAtPrice, price);
+
+    if ("error" in compareAt) {
+      return new NextResponse(compareAt.error, { status: 400 });
     }
 
     if (typeof quantity !== 'number' || quantity < 0) {
@@ -180,6 +188,7 @@ export async function PATCH(
         data: {
           name,
           price,
+          compareAtPrice: compareAt.value,
           quantity,
           categoryId,
           colorId,

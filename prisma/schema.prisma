@@ -252,24 +252,26 @@ model Category {
 }
 
 model Product {
-  id         String      @id @default(uuid())
-  storeId    String
-  categoryId String
-  name       String
-  price      Decimal
-  quantity   Int         @default(0)
-  isFeatured Boolean     @default(false)
-  isArchived Boolean     @default(false)
-  sizeId     String
-  colorId    String
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  images     Image[]
-  orderItems OrderItem[]
-  category   Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
-  color      Color       @relation(fields: [colorId], references: [id])
-  size       Size        @relation(fields: [sizeId], references: [id])
-  store      Store       @relation("StoreToProduct", fields: [storeId], references: [id])
+  id             String      @id @default(uuid())
+  storeId        String
+  categoryId     String
+  name           String
+  price          Decimal
+  // Display-only "was" price for sales; never used by orders, totals, billing or metrics.
+  compareAtPrice Decimal?
+  quantity       Int         @default(0)
+  isFeatured     Boolean     @default(false)
+  isArchived     Boolean     @default(false)
+  sizeId         String
+  colorId        String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  images         Image[]
+  orderItems     OrderItem[]
+  category       Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
+  color          Color       @relation(fields: [colorId], references: [id])
+  size           Size        @relation(fields: [sizeId], references: [id])
+  store          Store       @relation("StoreToProduct", fields: [storeId], references: [id])
 
   @@index([storeId])
   @@index([categoryId])

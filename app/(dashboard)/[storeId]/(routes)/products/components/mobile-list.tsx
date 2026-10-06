@@ -17,6 +17,9 @@ export function ProductMobileRow({ product }: ProductMobileRowProps) {
           <p className="break-words font-medium">{product.name}</p>
           <p className="mt-1 break-words text-lg font-semibold [overflow-wrap:anywhere]">
             {product.price}
+            {product.isOnSale && (
+              <Badge variant="secondary" className="ml-2 align-middle">Sale</Badge>
+            )}
           </p>
         </div>
         <div className="shrink-0">

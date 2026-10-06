@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs';
 import prismadb from '@/lib/prismadb';
 import { buildProductSearchFilter, parseSearchTerms } from '@/lib/product-search';
 import { findForeignReference } from '@/lib/store-scope';
+import { parseCompareAtPrice, parseProductsLimit } from '@/lib/compare-at-price';
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from '@/lib/product-images';
 
 export async function POST(
@@ -15,7 +16,7 @@ export async function POST(
 
     const body = await req.json();
 
-    const { name, price, quantity, categoryId, colorId, sizeId, images, isFeatured, isArchived } = body;
+    const { name, price, compareAtPrice, quantity, categoryId, colorId, sizeId, images, isFeatured, isArchived } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 401 });
@@ -37,6 +38,12 @@ export async function POST(
 
     if (!price) {
       return new NextResponse("Price is required", { status: 400 });
+    }
+
+    const compareAt = parseCompareAtPrice(compareAtPrice, price);
+
+    if ("error" in compareAt) {
+      return new NextResponse(compareAt.error, { status: 400 });
     }
 
     if (typeof quantity !== 'number' || quantity < 0) {
@@ -80,6 +87,7 @@ export async function POST(
       data: {
         name,
         price,
+        compareAtPrice: compareAt.value,
         quantity,
         isFeatured,
         isArchived,
@@ -117,6 +125,8 @@ export async function GET(
     const includeChildCategories = searchParams.get('includeChildCategories') === 'true';
     // Optional Storefront search text; missing/blank means no search filter.
     const searchTerms = parseSearchTerms(searchParams.get('q'));
+    // Optional cap (positive integer, max 50); invalid values are ignored.
+    const limit = parseProductsLimit(searchParams.get('limit'));
 
     if (!params.storeId) {
       return new NextResponse("Store id is required", { status: 400 });
@@ -165,9 +175,9 @@ export async function GET(
         color: true,
         size: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      }
+      // `id` breaks createdAt ties so the order (and `limit`) is deterministic.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
     });
   
     return NextResponse.json(products);
