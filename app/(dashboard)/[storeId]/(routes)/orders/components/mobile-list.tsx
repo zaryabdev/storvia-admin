@@ -26,15 +26,6 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
 
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
                 <span className="font-medium break-words">{order.status}</span>
-                {order.isPaid ? (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                        Paid
-                    </span>
-                ) : (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                        Unpaid
-                    </span>
-                )}
                 <span className="text-xs text-muted-foreground">
                     {order.paymentMethod}
                 </span>

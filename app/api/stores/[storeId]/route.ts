@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { storeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 
 export async function PATCH(
     req: Request,
@@ -70,6 +71,26 @@ export async function DELETE(
             return new NextResponse("Store id is required", { status: 400 });
         }
 
+        const existingStore = await prismadb.store.findUnique({
+            where: { id: params.storeId },
+            select: { userId: true },
+        });
+
+        if (!existingStore) {
+            return new NextResponse("Not found", { status: 404 });
+        }
+
+        // Same response the PATCH gives a non-owner.
+        if (existingStore.userId !== userId) {
+            return new NextResponse("Unauthorized", { status: 405 });
+        }
+
+        const inUse = await storeInUseMessage(params.storeId);
+
+        if (inUse) {
+            return inUseResponse(inUse);
+        }
+
         const store = await prismadb.store.deleteMany({
             where: {
                 id: params.storeId,
@@ -80,7 +101,7 @@ export async function DELETE(
         return NextResponse.json(store);
     } catch (error) {
         console.log("[STORE_DELETE]", error);
-        return new NextResponse("Internal error", { status: 500 });
+        return foreignKeyConflictResponse(error) ?? new NextResponse("Internal error", { status: 500 });
     }
 }
 

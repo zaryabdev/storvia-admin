@@ -7,7 +7,6 @@ export type OrderColumn = {
     id: string;
 
     trackingId: string;
-    isPaid: boolean;
 
     customerName: string;
     email: string;
@@ -77,15 +76,6 @@ export const columns: ColumnDef<OrderColumn>[] = [
             return (
                 <div className="flex items-center gap-2">
                     <span className="text-sm">{v}</span>
-                    {row.original.isPaid ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                            Paid
-                        </span>
-                    ) : (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                            Unpaid
-                        </span>
-                    )}
                 </div>
             );
         },

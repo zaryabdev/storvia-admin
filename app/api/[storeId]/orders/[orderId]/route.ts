@@ -249,7 +249,8 @@ export async function PATCH(
         });
 
         return NextResponse.json(updatedOrder);
-    } catch (error: any) {
-        return new NextResponse(error.message, { status: 500 });
+    } catch (error) {
+        console.log("[ORDER_PATCH]", error);
+        return new NextResponse("Internal error", { status: 500 });
     }
 }

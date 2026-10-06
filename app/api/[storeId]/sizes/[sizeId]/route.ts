@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { sizeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { existsInStore } from "@/lib/store-scope";
 import { auth } from "@clerk/nextjs";
 
@@ -63,6 +64,12 @@ export async function DELETE(
       return new NextResponse("Size not found", { status: 404 });
     }
 
+    const inUse = await sizeInUseMessage(params.sizeId);
+
+    if (inUse) {
+      return inUseResponse(inUse);
+    }
+
     const size = await prismadb.size.delete({
       where: {
         id: params.sizeId
@@ -72,7 +79,7 @@ export async function DELETE(
     return NextResponse.json(size);
   } catch (error) {
     console.log('[SIZE_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    return foreignKeyConflictResponse(error) ?? new NextResponse("Internal error", { status: 500 });
   }
 };
 

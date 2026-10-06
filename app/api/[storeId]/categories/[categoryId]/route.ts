@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
-import { findForeignReference } from "@/lib/store-scope";
+import { existsInStore, findForeignReference } from "@/lib/store-scope";
+import { categoryInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { isCategoryIconKey } from "@/lib/category-icons";
 
 export async function GET(
@@ -65,22 +66,14 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 
-    const existingCategory = await prismadb.category.findFirst({
-      where: {
-        id: params.categoryId,
-        storeId: params.storeId,
-      },
-      include: {
-        children: true,
-      }
-    });
-
-    if (!existingCategory) {
+    if (!(await existsInStore("category", params.categoryId, params.storeId))) {
       return new NextResponse("Category not found", { status: 404 });
     }
 
-    if (existingCategory.children.length > 0) {
-      return new NextResponse("Remove or reassign this category's child categories before deleting it", { status: 400 });
+    const inUse = await categoryInUseMessage(params.categoryId);
+
+    if (inUse) {
+      return inUseResponse(inUse);
     }
 
     const category = await prismadb.category.delete({
@@ -92,7 +85,7 @@ export async function DELETE(
     return NextResponse.json(category);
   } catch (error) {
     console.log('[CATEGORY_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    return foreignKeyConflictResponse(error) ?? new NextResponse("Internal error", { status: 500 });
   }
 };
 

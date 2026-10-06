@@ -2,6 +2,7 @@
 
 import * as z from "zod"
 import axios from "axios"
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -84,7 +85,7 @@ export const ColorForm: React.FC<ColorFormProps> = ({
       router.push(`/${params.storeId}/colors`);
       toast.success('Color deleted.');
     } catch (error: any) {
-      toast.error('Make sure you removed all products using this color first.');
+      toast.error(conflictMessage(error, 'Make sure you removed all products using this color first.'));
     } finally {
       setLoading(false);
       setOpen(false);

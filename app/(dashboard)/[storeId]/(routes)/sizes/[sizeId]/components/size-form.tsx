@@ -2,6 +2,7 @@
 
 import * as z from "zod"
 import axios from "axios"
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -82,7 +83,7 @@ export const SizeForm: React.FC<SizeFormProps> = ({
       router.push(`/${params.storeId}/sizes`);
       toast.success('Size deleted.');
     } catch (error: any) {
-      toast.error('Make sure you removed all products using this size first.');
+      toast.error(conflictMessage(error, 'Make sure you removed all products using this size first.'));
     } finally {
       setLoading(false);
       setOpen(false);

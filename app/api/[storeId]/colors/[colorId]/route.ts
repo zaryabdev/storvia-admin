@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
+import { colorInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { existsInStore } from "@/lib/store-scope";
 
 export async function GET(
@@ -63,6 +64,12 @@ export async function DELETE(
       return new NextResponse("Color not found", { status: 404 });
     }
 
+    const inUse = await colorInUseMessage(params.colorId);
+
+    if (inUse) {
+      return inUseResponse(inUse);
+    }
+
     const color = await prismadb.color.delete({
       where: {
         id: params.colorId
@@ -72,7 +79,7 @@ export async function DELETE(
     return NextResponse.json(color);
   } catch (error) {
     console.log('[COLOR_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    return foreignKeyConflictResponse(error) ?? new NextResponse("Internal error", { status: 500 });
   }
 };
 

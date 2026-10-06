@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Store } from "@prisma/client";
 import axios from "axios";
+import { conflictMessage } from "@/lib/api-error-message";
 import { Trash } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -84,7 +85,10 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {
             toast.success("Store deleted.");
         } catch (error: any) {
             toast.error(
-                "Make sure you removed all products and categories first.",
+                conflictMessage(
+                    error,
+                    "Make sure you removed all products and categories first.",
+                ),
             );
         } finally {
             setLoading(false);

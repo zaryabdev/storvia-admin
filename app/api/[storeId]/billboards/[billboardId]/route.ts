@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { billboardInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { existsInStore } from "@/lib/store-scope";
 
 export async function GET(
@@ -93,6 +94,12 @@ export async function DELETE(
             return new NextResponse("Billboard not found", { status: 404 });
         }
 
+        const inUse = await billboardInUseMessage(params.billboardId);
+
+        if (inUse) {
+          return inUseResponse(inUse);
+        }
+
         const billboard = await prismadb.billboard.delete({
             where: {
                 id: params.billboardId,
@@ -102,7 +109,7 @@ export async function DELETE(
         return NextResponse.json(billboard);
     } catch (error) {
         console.log("[BILLBOARD_DELETE]", error);
-        return new NextResponse("Internal error", { status: 500 });
+        return foreignKeyConflictResponse(error) ?? new NextResponse("Internal error", { status: 500 });
     }
 }
 

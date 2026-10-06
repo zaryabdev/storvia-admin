@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 
 import prismadb from "@/lib/prismadb";
+import { productInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { existsInStore, findForeignReference } from "@/lib/store-scope";
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from "@/lib/product-images";
 
@@ -74,6 +75,12 @@ export async function DELETE(
       return new NextResponse("Product not found", { status: 404 });
     }
 
+    const inUse = await productInUseMessage(params.productId);
+
+    if (inUse) {
+      return inUseResponse(inUse);
+    }
+
     const product = await prismadb.product.delete({
       where: {
         id: params.productId
@@ -83,7 +90,7 @@ export async function DELETE(
     return NextResponse.json(product);
   } catch (error) {
     console.log('[PRODUCT_DELETE]', error);
-    return new NextResponse("Internal error", { status: 500 });
+    return foreignKeyConflictResponse(error) ?? new NextResponse("Internal error", { status: 500 });
   }
 };
 

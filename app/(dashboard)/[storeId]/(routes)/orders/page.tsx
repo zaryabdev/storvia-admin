@@ -35,7 +35,6 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         id: item.id,
 
         trackingId: item.trackingId,
-        isPaid: item.isPaid,
 
         customerName: item.customerName ?? "",
         email: item.email ?? "",

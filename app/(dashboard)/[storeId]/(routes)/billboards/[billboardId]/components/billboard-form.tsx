@@ -2,6 +2,7 @@
 
 import * as z from "zod"
 import axios from "axios"
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -84,7 +85,7 @@ export const BillboardForm: React.FC<BillboardFormProps> = ({
       router.push(`/${params.storeId}/billboards`);
       toast.success('Billboard deleted.');
     } catch (error: any) {
-      toast.error('Make sure you removed all categories using this billboard first.');
+      toast.error(conflictMessage(error, 'Make sure you removed all categories using this billboard first.'));
     } finally {
       setLoading(false);
       setOpen(false);

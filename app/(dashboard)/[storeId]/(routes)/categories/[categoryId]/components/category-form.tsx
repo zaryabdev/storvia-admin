@@ -2,6 +2,7 @@
 
 import * as z from "zod"
 import axios from "axios"
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -117,7 +118,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
       router.push(`/${params.storeId}/categories`);
       toast.success('Category deleted.');
     } catch (error: any) {
-      toast.error('Make sure you removed all products using this category first.');
+      toast.error(conflictMessage(error, 'Make sure you removed all products using this category first.'));
     } finally {
       setLoading(false);
       setOpen(false);

@@ -32,7 +32,7 @@ export default function OrderDetailsModal({
                     <div className="min-w-0 rounded-xl border p-3">
                         <div className="text-xs text-gray-500">Status</div>
                         <div className="mt-1 break-words text-sm font-medium [overflow-wrap:anywhere]">
-                            {order.status} • {order.isPaid ? "Paid" : "Unpaid"}
+                            {order.status}
                         </div>
                     </div>
 

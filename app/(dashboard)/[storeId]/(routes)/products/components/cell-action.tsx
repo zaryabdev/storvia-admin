@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import { conflictMessage } from "@/lib/api-error-message";
 import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -37,7 +38,7 @@ export const CellAction: React.FC<CellActionProps> = ({
       toast.success('Product deleted.');
       router.refresh();
     } catch (error) {
-      toast.error('Something went wrong');
+      toast.error(conflictMessage(error, 'Something went wrong'));
     } finally {
       setLoading(false);
       setOpen(false);

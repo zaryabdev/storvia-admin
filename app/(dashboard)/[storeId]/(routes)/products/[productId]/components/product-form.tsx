@@ -2,6 +2,7 @@
 
 import * as z from "zod"
 import axios from "axios"
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -134,7 +135,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       router.push(`/${params.storeId}/products`);
       toast.success('Product deleted.');
     } catch (error: any) {
-      toast.error('Something went wrong.');
+      toast.error(conflictMessage(error, 'Something went wrong.'));
     } finally {
       setLoading(false);
       setOpen(false);

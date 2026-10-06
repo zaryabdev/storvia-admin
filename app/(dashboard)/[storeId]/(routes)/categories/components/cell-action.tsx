@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react";
 import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -38,7 +39,7 @@ export const CellAction: React.FC<CellActionProps> = ({
       toast.success('Category deleted.');
       router.refresh();
     } catch (error) {
-      toast.error('Make sure you removed all products using this category first.');
+      toast.error(conflictMessage(error, 'Make sure you removed all products using this category first.'));
     } finally {
       setOpen(false);
       setLoading(false);

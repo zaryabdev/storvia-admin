@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import { conflictMessage } from "@/lib/api-error-message";
 import { useState } from "react";
 import { Copy, Edit, ImageOff, ImagePlus, MoreHorizontal, Trash } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -37,7 +38,7 @@ export const CellAction: React.FC<CellActionProps> = ({
       toast.success('Billboard deleted.');
       router.refresh();
     } catch (error) {
-      toast.error('Make sure you removed all categories using this billboard first.');
+      toast.error(conflictMessage(error, 'Make sure you removed all categories using this billboard first.'));
     } finally {
       setOpen(false);
       setLoading(false);
