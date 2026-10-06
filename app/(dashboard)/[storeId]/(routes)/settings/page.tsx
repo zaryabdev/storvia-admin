@@ -7,6 +7,7 @@ import { SettingsForm } from "./components/settings-form";
 import { ThemeSection } from "./components/theme-section";
 import { BillingForm } from "./components/billing-form";
 import { EmailDeliverySection } from "./components/email-delivery-section";
+import { WhatsAppTemplatesSection } from "./components/whatsapp-templates-section";
 
 const SettingsPage = async ({
   params
@@ -41,6 +42,14 @@ const SettingsPage = async ({
           <EmailDeliverySection
             storeId={store.id}
             initialBlocked={store.emailDeliveryBlocked}
+          />
+        </div>
+        <div className="border-t pt-8">
+          <WhatsAppTemplatesSection
+            storeId={store.id}
+            storeName={store.name}
+            initialConfirmTemplate={store.whatsappConfirmTemplate}
+            initialMessageTemplate={store.whatsappMessageTemplate}
           />
         </div>
         <div className="border-t pt-8">

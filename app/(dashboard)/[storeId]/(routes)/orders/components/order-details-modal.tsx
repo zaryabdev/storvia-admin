@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/ui/modal";
 import type { OrderColumn } from "./columns";
+import { WhatsAppButton } from "./whatsapp-button";
 
 export default function OrderDetailsModal({
     open,
@@ -52,6 +53,8 @@ export default function OrderDetailsModal({
                         </div>
                     </div>
                 </div>
+
+                <WhatsAppButton order={order} />
 
                 {/* Customer */}
                 <div className="min-w-0 rounded-2xl border p-4">

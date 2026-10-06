@@ -2,6 +2,7 @@ import { format } from "date-fns";
 
 import prismadb from "@/lib/prismadb";
 import { formatter } from "@/lib/utils";
+import { buildOrderWhatsAppUrl, whatsAppKindFor } from "@/lib/whatsapp-message";
 
 import { OrderClient } from "./components/client";
 import { OrderColumn } from "./components/columns";
@@ -19,19 +20,69 @@ function buildShippingAddress(o: any) {
 }
 
 const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
+    // Store name + templates feed the WhatsApp buttons (rendered here, so the
+    // client only gets a ready link, or null when the phone can't be used).
+    const store = await prismadb.store.findUnique({
+        where: { id: params.storeId },
+        select: { name: true, whatsappConfirmTemplate: true, whatsappMessageTemplate: true },
+    });
+
     const orders = await prismadb.order.findMany({
         where: { storeId: params.storeId },
         include: {
             orderItems: {
                 include: {
-                    product: true,
+                    product: { include: { size: true, color: true } },
                 },
             },
         },
         orderBy: { createdAt: "desc" },
     });
 
-    const formattedOrders: OrderColumn[] = orders.map((item) => ({
+    const formattedOrders: OrderColumn[] = orders.map((item) => {
+        // Snapshot-backed orders use immutable Order.total. Legacy orders have
+        // no authoritative historical amount; retain the old display fallback.
+        const total =
+            item.total != null
+                ? Number(item.total)
+                : item.orderItems.reduce(
+                      (sum, oi) => sum + Number(oi.product.price) * oi.quantity,
+                      0,
+                  );
+
+        const whatsappUrl = buildOrderWhatsAppUrl(
+            {
+                storeName: store?.name ?? "",
+                trackingId: item.trackingId,
+                createdAt: item.createdAt,
+                status: item.status,
+                paymentMethod: item.paymentMethod,
+                customerName: item.customerName ?? "",
+                email: item.email ?? "",
+                phone: item.phone ?? "",
+                addressLine1: item.addressLine1 ?? "",
+                addressLine2: item.addressLine2 ?? "",
+                city: item.city ?? "",
+                postalCode: item.postalCode ?? "",
+                country: item.country ?? "PK",
+                legacyAddress: item.address ?? "",
+                customerNotes: item.customerNotes ?? "",
+                subtotal: item.subtotal != null ? Number(item.subtotal) : null,
+                total,
+                items: item.orderItems.map((oi) => ({
+                    name: oi.product.name,
+                    size: oi.product.size?.value,
+                    color: oi.product.color?.name,
+                    quantity: oi.quantity,
+                })),
+            },
+            {
+                confirmTemplate: store?.whatsappConfirmTemplate ?? null,
+                messageTemplate: store?.whatsappMessageTemplate ?? null,
+            },
+        );
+
+        return {
         id: item.id,
 
         trackingId: item.trackingId,
@@ -55,19 +106,16 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
             .join(", "),
         // Snapshot-backed orders use immutable Order.total. Legacy orders have
         // no authoritative historical amount; retain the old display fallback.
-        totalPrice: formatter.format(
-            item.total != null
-                ? Number(item.total)
-                : item.orderItems.reduce(
-                      (total, oi) => total + Number(oi.product.price) * oi.quantity,
-                      0,
-                  ),
-        ),
+        totalPrice: formatter.format(total),
 
         status: item.status,
         paymentMethod: item.paymentMethod,
         createdAt: format(item.createdAt, "MMMM do, yyyy"),
-    }));
+
+        whatsappKind: whatsAppKindFor(item.status),
+        whatsappUrl,
+        };
+    });
 
     return (
         <div className="flex-col">

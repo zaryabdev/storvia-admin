@@ -31,6 +31,12 @@ model Store {
   // returned by public Storefront APIs.
   emailDeliveryBlocked Boolean @default(false)
 
+  // Merchant-editable WhatsApp message templates (Roman Urdu defaults live in
+  // lib/whatsapp-message.ts). null = use the default. Private: never returned by
+  // public Storefront APIs.
+  whatsappConfirmTemplate String?
+  whatsappMessageTemplate String?
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)

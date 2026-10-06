@@ -2,6 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { CellAction } from "./cell-action";
+import { WhatsAppButton } from "./whatsapp-button";
 
 export type OrderColumn = {
     id: string;
@@ -27,6 +28,11 @@ export type OrderColumn = {
     status: string;
     paymentMethod: string;
     createdAt: string;
+
+    // WhatsApp button: which template applies, and the ready wa.me link
+    // (null when the phone number can't be used for WhatsApp).
+    whatsappKind: "confirm" | "message";
+    whatsappUrl: string | null;
 };
 
 export const columns: ColumnDef<OrderColumn>[] = [
@@ -79,6 +85,15 @@ export const columns: ColumnDef<OrderColumn>[] = [
                 </div>
             );
         },
+    },
+    {
+        id: "whatsapp",
+        header: "WhatsApp",
+        cell: ({ row }) => (
+            <div className="min-w-[190px]">
+                <WhatsAppButton order={row.original} />
+            </div>
+        ),
     },
     {
         id: "actions",
