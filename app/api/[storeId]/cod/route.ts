@@ -3,6 +3,7 @@ import { createTrackingId } from "@/lib/trackingId";
 import { NextResponse } from "next/server";
 import { sendNewOrderNotification } from "@/lib/email/send-new-order-notification";
 import { Decimal } from "@prisma/client/runtime/library";
+import { PAKISTANI_MOBILE_MESSAGE, isPakistaniMobile } from "@/lib/phone";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -38,6 +39,22 @@ type CreateOrderPayload = {
     notes?: string;
 };
 
+// Trimmed string, or "" for a missing or non-string value.
+const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
+// Required customer/shipping fields, checked before any database read. Returns
+// the plain-text message the Storefront shows, or null when they are valid.
+// Postal code, email, line 2 and notes are optional.
+function customerDetailsError(payload: CreateOrderPayload): string | null {
+    if (!text(payload.customer?.name)) return "Name is required";
+    if (!text(payload.customer?.phone)) return "Phone is required";
+    if (!isPakistaniMobile(text(payload.customer?.phone))) return PAKISTANI_MOBILE_MESSAGE;
+    if (!text(payload.shipping?.line1)) return "Address line 1 is required";
+    if (!text(payload.shipping?.city)) return "City is required";
+
+    return null;
+}
+
 function buildAddressString(payload: CreateOrderPayload) {
     const parts: string[] = [];
     const s = payload.shipping;
@@ -64,6 +81,7 @@ export async function POST(
         if (!Array.isArray(items) || items.length === 0) {
             return new NextResponse("Items are required", {
                 status: 400,
+                headers: corsHeaders,
             });
         }
 
@@ -84,6 +102,14 @@ export async function POST(
                     { status: 400, headers: corsHeaders },
                 );
             }
+        }
+
+        const detailsError = customerDetailsError(payload);
+        if (detailsError) {
+            return new NextResponse(detailsError, {
+                status: 400,
+                headers: corsHeaders,
+            });
         }
 
         const productIds = items.map((item) => item.productId);
@@ -159,14 +185,15 @@ export async function POST(
         const trackingId = createTrackingId();
 
         // ✅ normalize + fallbacks
-        const customerName = payload.customer?.name?.trim() ?? "";
+        const customerName = text(payload.customer?.name);
         const email = payload.customer?.email?.trim() ?? "";
-        const phone = payload.customer?.phone?.trim() ?? "";
+        const phone = text(payload.customer?.phone);
 
-        const addressLine1 = payload.shipping?.line1?.trim() ?? "";
+        const addressLine1 = text(payload.shipping?.line1);
         const addressLine2 = payload.shipping?.line2?.trim() ?? "";
-        const city = payload.shipping?.city?.trim() ?? "";
-        const postalCode = payload.shipping?.postalCode?.trim() ?? "";
+        const city = text(payload.shipping?.city);
+        // Optional; the column is non-nullable, so a missing value is "".
+        const postalCode = text(payload.shipping?.postalCode);
         const country = (payload.shipping?.country?.trim() ?? "PK") || "PK";
 
         const customerNotes = (

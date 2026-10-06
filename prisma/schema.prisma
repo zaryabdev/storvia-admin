@@ -37,6 +37,14 @@ model Store {
   whatsappConfirmTemplate String?
   whatsappMessageTemplate String?
 
+  // Sender (return address) printed on packing slips. Edited in Settings; the
+  // merchant route requires all four together. Private: never returned by
+  // public Storefront APIs.
+  senderName    String?
+  senderPhone   String?
+  senderAddress String?
+  senderCity    String?
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)

@@ -2,6 +2,8 @@
 // variables, rendered to a wa.me link. Pure functions, no React. Nothing is
 // sent automatically: the merchant taps a button that opens WhatsApp.
 
+import { toPakistaniMobile } from "./phone";
+
 export const MAX_TEMPLATE_LENGTH = 1000;
 export const MAX_ITEM_LINES = 10;
 
@@ -246,18 +248,8 @@ export function findUnknownPlaceholders(template: string): string[] {
 }
 
 // Pakistani numbers to wa.me format (92 + 10 digits starting with 3), or null.
-export function toWhatsAppNumber(phone: string | null | undefined): string | null {
-  if (typeof phone !== "string") return null;
-
-  let digits = phone.replace(/\D/g, "");
-
-  if (digits.startsWith("0092")) digits = digits.slice(2);
-  if (/^923\d{9}$/.test(digits)) return digits;
-  if (/^03\d{9}$/.test(digits)) return `92${digits.slice(1)}`;
-  if (/^3\d{9}$/.test(digits)) return `92${digits}`;
-
-  return null;
-}
+// The rule lives in lib/phone.ts (shared with checkout validation).
+export const toWhatsAppNumber = toPakistaniMobile;
 
 export function buildWhatsAppUrl(number: string, message: string): string {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;

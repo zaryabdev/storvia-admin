@@ -8,6 +8,7 @@ import { ThemeSection } from "./components/theme-section";
 import { BillingForm } from "./components/billing-form";
 import { EmailDeliverySection } from "./components/email-delivery-section";
 import { WhatsAppTemplatesSection } from "./components/whatsapp-templates-section";
+import { SenderDetailsSection } from "./components/sender-details-section";
 
 const SettingsPage = async ({
   params
@@ -35,6 +36,17 @@ const SettingsPage = async ({
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-4 pt-4 sm:p-6 sm:pt-6 lg:p-8 lg:pt-6">
         <SettingsForm initialData={store} />
+        <div className="border-t pt-8">
+          <SenderDetailsSection
+            storeId={store.id}
+            initialDetails={{
+              senderName: store.senderName,
+              senderPhone: store.senderPhone,
+              senderAddress: store.senderAddress,
+              senderCity: store.senderCity,
+            }}
+          />
+        </div>
         <div className="border-t pt-8">
           <ThemeSection />
         </div>
