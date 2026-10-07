@@ -2,8 +2,10 @@
 // functions, no React or Prisma. Templates use the shared order-template
 // engine (lib/order-template.ts), including the sender variables.
 
+import { formatDeliveryDays } from "./delivery";
 import {
   formatDate,
+  formatDeliveryFee,
   formatMoney,
   normalizeTemplateInput,
   renderTemplate,
@@ -60,6 +62,9 @@ export interface PackingSlipStore {
   slipPaperSize: string;
   slipHeaderTemplate: string | null;
   slipFooterTemplate: string | null;
+  /** For {delivery_days}; omitted = no value. */
+  deliveryDaysMin?: number;
+  deliveryDaysMax?: number;
 }
 
 export type PackingSlipBanner = "NOT CONFIRMED" | "CANCELED" | null;
@@ -89,8 +94,8 @@ export interface PackingSlipModel {
     unitPrice?: string;
     lineTotal?: string;
   }>;
-  /** null when prices are hidden. */
-  totals: { subtotal: string; total: string } | null;
+  /** null when prices are hidden. `delivery` is null for a legacy order (no line). */
+  totals: { subtotal: string; delivery: string | null; total: string } | null;
   /** Always present: COD shows the amount, any other method shows prepaid. */
   amountToCollect:
     | { kind: "cod"; label: "AMOUNT TO COLLECT (COD)"; amount: string }
@@ -109,6 +114,10 @@ export function buildPackingSlipModel(
     ...order,
     storeName: store.name,
     items: order.items.map(({ name, size, color, quantity }) => ({ name, size, color, quantity })),
+    deliveryDays:
+      store.deliveryDaysMin !== undefined && store.deliveryDaysMax !== undefined
+        ? formatDeliveryDays(store.deliveryDaysMin, store.deliveryDaysMax)
+        : undefined,
     senderName: store.senderName,
     senderPhone: store.senderPhone,
     senderAddress: store.senderAddress,
@@ -154,7 +163,13 @@ export function buildPackingSlipModel(
         ? { unitPrice: formatMoney(item.unitPrice), lineTotal: formatMoney(item.lineTotal) }
         : {}),
     })),
-    totals: showPrices ? { subtotal: formatMoney(order.subtotal), total } : null,
+    totals: showPrices
+      ? {
+          subtotal: formatMoney(order.subtotal),
+          delivery: order.deliveryFee == null ? null : formatDeliveryFee(order.deliveryFee),
+          total,
+        }
+      : null,
     amountToCollect:
       order.paymentMethod === "COD"
         ? { kind: "cod", label: "AMOUNT TO COLLECT (COD)", amount: total }

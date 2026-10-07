@@ -30,7 +30,7 @@ Order #{order_number}
 Total: {total} (Cash on Delivery)
 Address: {address}, {city}
 
-Order confirm karne ke liye "YES" reply karein. Delivery 2–3 din mein hogi. Shukriya!`;
+Order confirm karne ke liye "YES" reply karein. Delivery {delivery_days} din mein hogi. Shukriya!`;
 
 export const DEFAULT_MESSAGE_TEMPLATE =
   "Assalam o Alaikum {customer_name}! {store_name} se aap ke order #{order_number} ke baare mein raabta kar rahe hain.";

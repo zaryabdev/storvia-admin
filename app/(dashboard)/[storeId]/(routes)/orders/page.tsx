@@ -2,6 +2,8 @@ import { format } from "date-fns";
 
 import prismadb from "@/lib/prismadb";
 import { formatter } from "@/lib/utils";
+import { formatDeliveryDays } from "@/lib/delivery";
+import { formatDeliveryFee } from "@/lib/order-template";
 import { buildOrderWhatsAppUrl, whatsAppKindFor } from "@/lib/whatsapp-message";
 
 import { OrderClient } from "./components/client";
@@ -32,6 +34,8 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
             senderPhone: true,
             senderAddress: true,
             senderCity: true,
+            deliveryDaysMin: true,
+            deliveryDaysMax: true,
         },
     });
 
@@ -47,6 +51,7 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         orderBy: { createdAt: "desc" },
     });
 
+    const deliveryDays = store ? formatDeliveryDays(store.deliveryDaysMin, store.deliveryDaysMax) : "";
     const formattedOrders: OrderColumn[] = orders.map((item) => {
         // Snapshot-backed orders use immutable Order.total. Legacy orders have
         // no authoritative historical amount; retain the old display fallback.
@@ -83,6 +88,8 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
                     color: oi.product.color?.name,
                     quantity: oi.quantity,
                 })),
+                deliveryFee: item.deliveryFee?.toFixed() ?? null,
+                deliveryDays,
                 senderName: store?.senderName,
                 senderPhone: store?.senderPhone,
                 senderAddress: store?.senderAddress,
@@ -119,6 +126,10 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         // Snapshot-backed orders use immutable Order.total. Legacy orders have
         // no authoritative historical amount; retain the old display fallback.
         totalPrice: formatter.format(total),
+        // Display strings only (Decimals never reach the client). A legacy
+        // order has no subtotal snapshot (items fallback) and no delivery fee.
+        subtotalPrice: formatter.format(item.subtotal != null ? Number(item.subtotal) : total),
+        deliveryPrice: item.deliveryFee != null ? formatDeliveryFee(item.deliveryFee.toFixed()) : "—",
 
         status: item.status,
         paymentMethod: item.paymentMethod,

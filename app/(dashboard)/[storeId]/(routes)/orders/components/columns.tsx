@@ -23,6 +23,9 @@ export type OrderColumn = {
     shippingAddress: string;
 
     totalPrice: string;
+    /** Display strings: items subtotal; delivery "Rs 200" / "Free" / "—" (legacy). */
+    subtotalPrice: string;
+    deliveryPrice: string;
     products: string;
 
     status: string;

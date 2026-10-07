@@ -1,3 +1,4 @@
+import { formatDeliveryFee } from "@/lib/order-template";
 import { formatter } from "@/lib/utils";
 import { isStoreEmailDeliveryBlocked } from "@/lib/email/email-delivery";
 import { getResendClient } from "@/lib/resend";
@@ -8,6 +9,8 @@ type NotificationOrder = {
     trackingId: string;
     status: string;
     totalPrice: number;
+    /** Decimal snapshot; null on legacy orders. */
+    deliveryFee?: unknown;
     createdAt: Date;
     customerName: string;
     email: string;
@@ -83,6 +86,10 @@ export async function sendNewOrderNotification(order: NotificationOrder) {
         .filter(Boolean)
         .join(", ");
 
+    // "Rs 200", or "Free" for 0; no line for a legacy order (null).
+    const delivery =
+        order.deliveryFee == null ? null : formatDeliveryFee(String(order.deliveryFee));
+
     const rows = [
         ["Store", order.store.name],
         ["Tracking ID", order.trackingId],
@@ -105,7 +112,7 @@ export async function sendNewOrderNotification(order: NotificationOrder) {
             ({ product, quantity, lineTotal }) =>
                 `<li>${escapeHtml(product.name)} — Qty: ${quantity}, Size: ${escapeHtml(product.size.name)}, Color: ${escapeHtml(product.color.name)}, ${escapeHtml(formatter.format(Number(lineTotal)))}</li>`,
         )
-        .join("")}</ul><p><strong>Order total: ${escapeHtml(formatter.format(order.totalPrice))}</strong></p></body></html>`;
+        .join("")}</ul>${delivery === null ? "" : `<p>Delivery: ${escapeHtml(delivery)}</p>`}<p><strong>Order total: ${escapeHtml(formatter.format(order.totalPrice))}</strong></p></body></html>`;
 
     const text = [
         "New Order Received",
@@ -113,6 +120,7 @@ export async function sendNewOrderNotification(order: NotificationOrder) {
         "",
         "Products:",
         productsText,
+        ...(delivery === null ? [] : [`Delivery: ${delivery}`]),
         `Order total: ${formatter.format(order.totalPrice)}`,
     ].join("\n");
 

@@ -112,6 +112,20 @@ export default function OrderDetailsModal({
                     <div className="mt-2 break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
                         {order.products || "—"}
                     </div>
+                    <dl className="mt-4 space-y-1 border-t pt-3 text-sm">
+                        <div className="flex justify-between gap-4">
+                            <dt className="text-gray-500">Subtotal</dt>
+                            <dd className="text-right">{order.subtotalPrice}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                            <dt className="text-gray-500">Delivery</dt>
+                            <dd className="text-right">{order.deliveryPrice}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4 font-semibold text-gray-900">
+                            <dt>Total</dt>
+                            <dd className="text-right">{order.totalPrice}</dd>
+                        </div>
+                    </dl>
                 </div>
             </div>
         </Modal>

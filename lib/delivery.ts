@@ -239,6 +239,32 @@ export function resolveDeliveryFee(
   return fee;
 }
 
+// The checkout city for an order, or null when no served city matches.
+// A valid `cityKey` ("other" included) is used as is. Without one (older
+// Storefront payloads that only send the city text), the text is matched
+// case-insensitively against the city names; anything else becomes "other"
+// when Other city is allowed. The key must be served by the settings.
+export function resolveDeliveryCity(
+  settings: DeliverySettings,
+  { cityKey, city }: { cityKey?: unknown; city?: unknown },
+): string | null {
+  const options = getDeliveryOptions(settings);
+  const served = (key: string) =>
+    key === OTHER_CITY.key ? options.otherCityAllowed : options.cities.some((c) => c.key === key);
+
+  if (typeof cityKey === "string" && (cityKey === OTHER_CITY.key || isCityKey(cityKey))) {
+    return served(cityKey) ? cityKey : null;
+  }
+
+  const text = typeof city === "string" ? city.trim().toLowerCase() : "";
+  const match = PAKISTAN_CITIES.find((c) => c.name.toLowerCase() === text)?.key;
+
+  if (match) return served(match) ? match : null;
+  if (text === OTHER_CITY.name.toLowerCase()) return served(OTHER_CITY.key) ? OTHER_CITY.key : null;
+
+  return options.otherCityAllowed ? OTHER_CITY.key : null;
+}
+
 // "2–3" (en dash), or "2" when both are equal.
 export const formatDeliveryDays = (min: number, max: number): string =>
   min === max ? String(min) : `${min}–${max}`;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs";
 import prismadb from "@/lib/prismadb";
-import { getStoreSalesByCurrency, singleCurrencySales } from "@/lib/store-sales";
+import { getStoreDeliveryFeesTotal, getStoreSalesByCurrency, singleCurrencySales } from "@/lib/store-sales";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +65,10 @@ export async function GET(
       return new NextResponse("Store not found", { status: 404 });
     }
 
-    const [byCurrency, owner] = await Promise.all([
+    const [byCurrency, owner, deliveryFeesTotal] = await Promise.all([
       getStoreSalesByCurrency(store.id),
       getOwner(store.userId),
+      getStoreDeliveryFeesTotal(store.id),
     ]);
 
     // Throws on mixed currencies: never silently sum them.
@@ -81,6 +82,8 @@ export async function GET(
         emailDeliveryBlocked: store.emailDeliveryBlocked,
         orderCount: store._count.orders,
         salesTotal: salesTotal.toFixed(),
+        // PKR; already included in salesTotal (sales include delivery).
+        deliveryFeesTotal: deliveryFeesTotal.toFixed(),
         currency,
         owner,
       },

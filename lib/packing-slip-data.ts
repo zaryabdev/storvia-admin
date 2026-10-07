@@ -32,6 +32,8 @@ export async function loadPackingSlipData({
       slipPaperSize: true,
       slipHeaderTemplate: true,
       slipFooterTemplate: true,
+      deliveryDaysMin: true,
+      deliveryDaysMax: true,
     },
   });
 
@@ -58,6 +60,7 @@ export async function loadPackingSlipData({
   });
   const itemsSum = lines.reduce((sum, { line }) => sum.plus(line), new PreciseDecimal(0));
   const subtotal = order.subtotal != null ? new PreciseDecimal(order.subtotal.toString()) : itemsSum;
+  // Snapshot total already includes delivery; a legacy order has neither.
   const total = order.total != null ? new PreciseDecimal(order.total.toString()) : subtotal;
 
   return {
@@ -79,6 +82,7 @@ export async function loadPackingSlipData({
       legacyAddress: order.address ?? "",
       customerNotes: order.customerNotes ?? "",
       subtotal: subtotal.toNumber(),
+      deliveryFee: order.deliveryFee != null ? new PreciseDecimal(order.deliveryFee.toString()).toFixed() : null,
       total: total.toNumber(),
       items: lines.map(({ oi, unit, line }) => ({
         name: oi.product.name,

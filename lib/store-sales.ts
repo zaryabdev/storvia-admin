@@ -293,3 +293,31 @@ export async function getStoreSalesOrders(
 
   return orders;
 }
+
+/**
+ * "Delivery fees collected": per Store, the exact sum of Order.deliveryFee over
+ * the same eligible orders as sales (CONFIRMED + DELIVERED), in PKR (a NULL
+ * currency is PKR). Legacy orders (NULL deliveryFee) add nothing. One grouped
+ * query for any number of Stores; Stores without fees are absent (= 0).
+ */
+export async function getDeliveryFeesByStore(storeIds?: string[]): Promise<Map<string, Decimal>> {
+  const groups = await prismadb.order.groupBy({
+    by: ["storeId"],
+    where: {
+      status: { in: [...SALES_STATUSES] },
+      ...(storeIds && { storeId: { in: storeIds } }),
+      deliveryFee: { not: null },
+      OR: [{ currency: null }, { currency: DASHBOARD_CURRENCY }],
+    },
+    _sum: { deliveryFee: true },
+  });
+
+  return new Map(
+    groups.map((g) => [g.storeId, new PreciseDecimal(g._sum.deliveryFee ?? 0) as Decimal])
+  );
+}
+
+/** One Store's delivery fees collected (exact PKR; 0 when none). */
+export async function getStoreDeliveryFeesTotal(storeId: string): Promise<Decimal> {
+  return (await getDeliveryFeesByStore([storeId])).get(storeId) ?? (new PreciseDecimal(0) as Decimal);
+}

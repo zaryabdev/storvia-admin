@@ -196,6 +196,12 @@ export function SlipView({
                             <span>Subtotal</span>
                             <span>{slip.totals.subtotal}</span>
                         </div>
+                        {slip.totals.delivery !== null && (
+                            <div>
+                                <span>Delivery</span>
+                                <span>{slip.totals.delivery}</span>
+                            </div>
+                        )}
                         <div className="ps-grand">
                             <span>Total</span>
                             <span>{slip.totals.total}</span>

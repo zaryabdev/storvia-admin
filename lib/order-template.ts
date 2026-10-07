@@ -27,6 +27,10 @@ export interface OrderTemplateData {
   subtotal: number | null;
   total: number | null;
   items: Array<{ name: string; size?: string | null; color?: string | null; quantity: number }>;
+  /** The order's delivery fee snapshot as a decimal string; null/undefined = unknown (legacy order). */
+  deliveryFee?: string | null;
+  /** The Store's current delivery time label, e.g. "2–3" (formatDeliveryDays). */
+  deliveryDays?: string;
   /** The Store's sender details (Settings); missing = empty string. */
   senderName?: string | null;
   senderPhone?: string | null;
@@ -44,6 +48,15 @@ const money = new Intl.NumberFormat("en-PK", {
 // Same format as the Admin formatter ("Rs 4,500"), with plain spaces for WhatsApp.
 export const formatMoney = (value: number | null) =>
   value === null || !Number.isFinite(value) ? "" : money.format(value).replace(/ /g, " ");
+
+// "Rs 200", "Free" for zero, "" when unknown. Zero is checked on the decimal
+// string itself; the number is only for display formatting.
+export const formatDeliveryFee = (value: string | null | undefined) =>
+  value == null || value.trim() === ""
+    ? ""
+    : /^0*(\.0*)?$/.test(value.trim())
+      ? "Free"
+      : formatMoney(Number(value));
 
 // "6 Oct 2026", in Pakistan time.
 export const formatDate = (value: Date | string) => {
@@ -117,6 +130,8 @@ function resolveVariables(data: OrderTemplateData): Record<string, string> {
     country,
     full_address: structured ? parts.join(", ") : legacy,
     delivery_notes: data.customerNotes,
+    delivery_fee: formatDeliveryFee(data.deliveryFee),
+    delivery_days: data.deliveryDays ?? "",
     sender_name: data.senderName ?? "",
     sender_phone: data.senderPhone ?? "",
     sender_address: data.senderAddress ?? "",
@@ -151,6 +166,8 @@ export const ORDER_TEMPLATE_VARIABLES: Array<{
   { key: "country", label: "Country", description: "The delivery country.", example: "Pakistan" },
   { key: "full_address", label: "Full address", description: "Every address part that is filled in, joined with commas.", example: "House 12, Street 5, Gulberg, Near Main Market, Lahore, 54000, Pakistan" },
   { key: "delivery_notes", label: "Delivery notes", description: "The note the customer left for delivery, if any.", example: "Please call before arriving." },
+  { key: "delivery_fee", label: "Delivery fee", description: "The order's delivery fee, e.g. Rs 200, or Free.", example: "Free" },
+  { key: "delivery_days", label: "Delivery days", description: "Your delivery time from Settings → Delivery, e.g. 2–3.", example: "2–3" },
   { key: "sender_name", label: "Sender name", description: "Your sender name (Settings → Sender details).", example: "Your Store" },
   { key: "sender_phone", label: "Sender phone", description: "Your sender phone (Settings → Sender details).", example: "042 35761234" },
   { key: "sender_address", label: "Sender address", description: "Your sender address (Settings → Sender details).", example: "Shop 4, Liberty Market" },
@@ -182,6 +199,8 @@ export const SAMPLE_ORDER: OrderTemplateData = {
     { name: "Leather Wallet", size: null, color: "Brown", quantity: 1 },
     { name: "Lawn Dupatta", size: null, color: null, quantity: 1 },
   ],
+  deliveryFee: "0",
+  deliveryDays: "2–3",
   senderName: "Your Store",
   senderPhone: "042 35761234",
   senderAddress: "Shop 4, Liberty Market",

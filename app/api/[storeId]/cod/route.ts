@@ -4,6 +4,14 @@ import { NextResponse } from "next/server";
 import { sendNewOrderNotification } from "@/lib/email/send-new-order-notification";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PAKISTANI_MOBILE_MESSAGE, isPakistaniMobile } from "@/lib/phone";
+import { PreciseDecimal } from "@/lib/decimal";
+import {
+    DEFAULT_DELIVERY_SETTINGS,
+    deliverySettingsFromStore,
+    resolveDeliveryCity,
+    resolveDeliveryFee,
+} from "@/lib/delivery";
+import { cityName } from "@/lib/pakistan-cities";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -32,6 +40,8 @@ type CreateOrderPayload = {
         line1?: string;
         line2?: string;
         city?: string;
+        /** lib/pakistan-cities.ts key ("other" included); older clients omit it. */
+        cityKey?: string;
         postalCode?: string;
         country?: string; // "PK"
         notes?: string;
@@ -50,7 +60,7 @@ function customerDetailsError(payload: CreateOrderPayload): string | null {
     if (!text(payload.customer?.phone)) return "Phone is required";
     if (!isPakistaniMobile(text(payload.customer?.phone))) return PAKISTANI_MOBILE_MESSAGE;
     if (!text(payload.shipping?.line1)) return "Address line 1 is required";
-    if (!text(payload.shipping?.city)) return "City is required";
+    if (!text(payload.shipping?.city) && !text(payload.shipping?.cityKey)) return "City is required";
 
     return null;
 }
@@ -107,6 +117,34 @@ export async function POST(
         const detailsError = customerDetailsError(payload);
         if (detailsError) {
             return new NextResponse(detailsError, {
+                status: 400,
+                headers: corsHeaders,
+            });
+        }
+
+        // Delivery: resolve the checkout city against the Store's current
+        // settings. The client never sends a fee; the server's fee wins.
+        const store = await prismadb.store.findUnique({
+            where: { id: params.storeId },
+            select: {
+                deliveryArea: true,
+                deliveryFee: true,
+                freeDeliveryThreshold: true,
+                deliveryDaysMin: true,
+                deliveryDaysMax: true,
+                deliveryCities: { select: { cityKey: true, fee: true } },
+            },
+        });
+        const deliverySettings = store
+            ? deliverySettingsFromStore(store, store.deliveryCities)
+            : DEFAULT_DELIVERY_SETTINGS;
+        const cityKey = resolveDeliveryCity(deliverySettings, {
+            cityKey: payload.shipping?.cityKey,
+            city: payload.shipping?.city,
+        });
+
+        if (!cityKey) {
+            return new NextResponse("We don't deliver to this city", {
                 status: 400,
                 headers: corsHeaders,
             });
@@ -180,7 +218,16 @@ export async function POST(
             (sum, item) => sum.add(item.lineTotal),
             new Decimal(0),
         );
-        const total = subtotal;
+        const deliveryFee = resolveDeliveryFee(deliverySettings, cityKey, subtotal.toFixed());
+
+        if (deliveryFee === null) {
+            return new NextResponse("We don't deliver to this city", {
+                status: 400,
+                headers: corsHeaders,
+            });
+        }
+
+        const total = new PreciseDecimal(subtotal).plus(deliveryFee);
 
         const trackingId = createTrackingId();
 
@@ -191,7 +238,8 @@ export async function POST(
 
         const addressLine1 = text(payload.shipping?.line1);
         const addressLine2 = payload.shipping?.line2?.trim() ?? "";
-        const city = text(payload.shipping?.city);
+        // The canonical city name ("Other city" for any other town).
+        const city = cityName(cityKey) ?? "";
         // Optional; the column is non-nullable, so a missing value is "".
         const postalCode = text(payload.shipping?.postalCode);
         const country = (payload.shipping?.country?.trim() ?? "PK") || "PK";
@@ -240,6 +288,7 @@ export async function POST(
                     })),
                 },
                 subtotal,
+                deliveryFee: new PreciseDecimal(deliveryFee),
                 total,
                 currency: "PKR",
             },
@@ -295,6 +344,7 @@ export async function POST(
                     color: item.product.color,
                 })),
                 subtotal: order.subtotal,
+                deliveryFee,
                 total: order.total,
                 currency: order.currency,
                 totalPrice: Number(total),
