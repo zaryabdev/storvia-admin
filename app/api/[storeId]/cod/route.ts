@@ -302,9 +302,11 @@ export async function POST(
             },
             { headers: corsHeaders },
         );
-    } catch (error: any) {
-        return new NextResponse(error.message ?? "Server error", {
+    } catch (error) {
+        console.log("[COD_POST]", error);
+        return new NextResponse("Internal error", {
             status: 500,
+            headers: corsHeaders,
         });
     }
 }
