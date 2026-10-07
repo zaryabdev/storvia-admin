@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/ui/modal";
 import type { OrderColumn } from "./columns";
+import { PrintSlipButton } from "./print-slip-button";
 import { WhatsAppButton } from "./whatsapp-button";
 
 export default function OrderDetailsModal({
@@ -54,7 +55,10 @@ export default function OrderDetailsModal({
                     </div>
                 </div>
 
-                <WhatsAppButton order={order} />
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
+                    <WhatsAppButton order={order} />
+                    <PrintSlipButton order={order} />
+                </div>
 
                 {/* Customer */}
                 <div className="min-w-0 rounded-2xl border p-4">

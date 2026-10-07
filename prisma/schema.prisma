@@ -45,6 +45,13 @@ model Store {
   senderAddress String?
   senderCity    String?
 
+  // Packing slips: paper size and merchant-editable header/footer templates
+  // (defaults live in lib/packing-slip.ts). null = use the default. Private:
+  // never returned by public Storefront APIs.
+  slipPaperSize      SlipPaperSize @default(A5)
+  slipHeaderTemplate String?
+  slipFooterTemplate String?
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
@@ -235,6 +242,11 @@ model BillboardImage {
   billboard   Billboard @relation(fields: [billboardId], references: [id], onDelete: Cascade)
 
   @@index([billboardId])
+}
+
+enum SlipPaperSize {
+  A5
+  A4
 }
 
 enum BillboardLayout {

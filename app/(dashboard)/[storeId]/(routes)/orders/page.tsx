@@ -20,11 +20,19 @@ function buildShippingAddress(o: any) {
 }
 
 const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
-    // Store name + templates feed the WhatsApp buttons (rendered here, so the
+    // Store name, sender details + templates feed the WhatsApp buttons (rendered here, so the
     // client only gets a ready link, or null when the phone can't be used).
     const store = await prismadb.store.findUnique({
         where: { id: params.storeId },
-        select: { name: true, whatsappConfirmTemplate: true, whatsappMessageTemplate: true },
+        select: {
+            name: true,
+            whatsappConfirmTemplate: true,
+            whatsappMessageTemplate: true,
+            senderName: true,
+            senderPhone: true,
+            senderAddress: true,
+            senderCity: true,
+        },
     });
 
     const orders = await prismadb.order.findMany({
@@ -75,6 +83,10 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
                     color: oi.product.color?.name,
                     quantity: oi.quantity,
                 })),
+                senderName: store?.senderName,
+                senderPhone: store?.senderPhone,
+                senderAddress: store?.senderAddress,
+                senderCity: store?.senderCity,
             },
             {
                 confirmTemplate: store?.whatsappConfirmTemplate ?? null,

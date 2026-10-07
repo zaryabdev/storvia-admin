@@ -2,6 +2,7 @@
 
 import { CellAction } from "./cell-action";
 import { OrderColumn } from "./columns";
+import { PrintSlipButton } from "./print-slip-button";
 import { WhatsAppButton } from "./whatsapp-button";
 
 interface OrderMobileRowProps {
@@ -64,6 +65,7 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
             </dl>
 
             <WhatsAppButton order={order} className="mt-4" />
+            <PrintSlipButton order={order} className="mt-2" />
         </div>
     );
 }

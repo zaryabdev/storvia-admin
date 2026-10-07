@@ -15,6 +15,7 @@ import {
 
 import type { OrderColumn } from "./columns";
 import OrderDetailsModal from "./order-details-modal";
+import { slipHref } from "./print-slip-button";
 
 interface CellActionProps {
     data: OrderColumn;
@@ -74,6 +75,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => setOpenDetails(true)}>
                         View details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <a
+                            href={slipHref(String(params.storeId), data.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Print packing slip for order ${data.trackingId} (opens in a new tab)`}
+                        >
+                            Print slip
+                        </a>
                     </DropdownMenuItem>
 
                     {allowedTargets.includes("CONFIRMED") && (
