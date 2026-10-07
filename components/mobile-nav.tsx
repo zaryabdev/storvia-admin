@@ -1,9 +1,10 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Download, Menu } from "lucide-react";
 import { useState } from "react";
 
 import { MainNav } from "@/components/main-nav";
+import { useInstallApp } from "@/components/pwa-provider";
 import StoreSwitcher from "@/components/store-switcher";
 import { StorviaLogo } from "@/components/storvia-logo";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ interface MobileNavProps {
 
 export function MobileNav({ stores }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const { canInstall, install } = useInstallApp();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -44,7 +46,20 @@ export function MobileNav({ stores }: MobileNavProps) {
         <div className="flex min-h-full flex-col gap-6">
           <StoreSwitcher items={stores} onNavigate={() => setOpen(false)} />
           <MainNav mobile onNavigate={() => setOpen(false)} />
-          <div className="mt-auto border-t pt-4">
+          <div className="mt-auto space-y-3 border-t pt-4">
+            {canInstall && (
+              <Button
+                variant="outline"
+                className="min-h-[44px] w-full justify-start gap-2"
+                onClick={() => {
+                  setOpen(false);
+                  void install();
+                }}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Install app
+              </Button>
+            )}
             <ThemeToggle />
           </div>
         </div>

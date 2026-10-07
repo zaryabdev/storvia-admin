@@ -46,7 +46,7 @@ const PackingSlipPage = async ({
     return (
       <SlipMessage
         title="Add your sender details in Settings to print packing slips."
-        link={{ href: `/${params.storeId}/settings`, label: "Go to Settings" }}
+        link={{ href: `/${params.storeId}/settings?tab=delivery`, label: "Go to Settings" }}
       />
     );
   }

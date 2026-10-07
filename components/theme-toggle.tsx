@@ -1,19 +1,24 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun } from "lucide-react"
+import { Download, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
+import { useInstallApp } from "@/components/pwa-provider"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function ThemeToggle() {
+// `showInstall`: the desktop navbar's menu also carries the quiet "Install app"
+// item (the mobile drawer has its own button, so it is off there).
+export function ThemeToggle({ showInstall = false }: { showInstall?: boolean }) {
   const { setTheme } = useTheme()
+  const { canInstall, install } = useInstallApp()
 
   return (
     <DropdownMenu>
@@ -34,6 +39,15 @@ export function ThemeToggle() {
         <DropdownMenuItem onClick={() => setTheme("system")}>
           System
         </DropdownMenuItem>
+        {showInstall && canInstall && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => void install()}>
+              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+              Install app
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

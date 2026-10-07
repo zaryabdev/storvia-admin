@@ -13,11 +13,14 @@ import { WhatsAppTemplatesSection } from "./components/whatsapp-templates-sectio
 import { SenderDetailsSection } from "./components/sender-details-section";
 import { PackingSlipSection } from "./components/packing-slip-section";
 import { DeliverySection } from "./components/delivery-section";
+import { SettingsTabs, parseSettingsTab } from "./components/settings-tabs";
 
 const SettingsPage = async ({
-  params
+  params,
+  searchParams
 }: {
   params: { storeId: string }
+  searchParams: { tab?: string | string[] }
 }) => {
   const { userId } = auth();
 
@@ -50,11 +53,24 @@ const SettingsPage = async ({
     senderCity: store.senderCity || SAMPLE_ORDER.senderCity,
   };
 
-  return ( 
-    <div className="flex-col">
-      <div className="flex-1 space-y-4 p-4 pt-4 sm:p-6 sm:pt-6 lg:p-8 lg:pt-6">
+  // Each section renders exactly once, in its tab (?tab= decides which shows
+  // first; every panel stays mounted so unsaved edits survive tab switches).
+  const panels = {
+    store: (
+      <>
         <SettingsForm
           initialData={{ name: store.name, logoUrl: store.logoUrl, faviconUrl: store.faviconUrl }}
+        />
+        <div className="border-t pt-8">
+          <ThemeSection />
+        </div>
+      </>
+    ),
+    delivery: (
+      <>
+        <DeliverySection
+          storeId={store.id}
+          initialSettings={toMerchantDeliveryBody(deliverySettingsFromStore(store, store.deliveryCities))}
         />
         <div className="border-t pt-8">
           <SenderDetailsSection
@@ -67,41 +83,43 @@ const SettingsPage = async ({
             }}
           />
         </div>
-        <div className="border-t pt-8">
-          <DeliverySection
-            storeId={store.id}
-            initialSettings={toMerchantDeliveryBody(deliverySettingsFromStore(store, store.deliveryCities))}
-          />
-        </div>
-        <div className="border-t pt-8">
-          <ThemeSection />
-        </div>
+      </>
+    ),
+    messages: (
+      <>
+        <WhatsAppTemplatesSection
+          storeId={store.id}
+          sample={sample}
+          initialConfirmTemplate={store.whatsappConfirmTemplate}
+          initialMessageTemplate={store.whatsappMessageTemplate}
+        />
         <div className="border-t pt-8">
           <EmailDeliverySection
             storeId={store.id}
             initialBlocked={store.emailDeliveryBlocked}
           />
         </div>
-        <div className="border-t pt-8">
-          <WhatsAppTemplatesSection
-            storeId={store.id}
-            sample={sample}
-            initialConfirmTemplate={store.whatsappConfirmTemplate}
-            initialMessageTemplate={store.whatsappMessageTemplate}
-          />
-        </div>
-        <div className="border-t pt-8">
-          <PackingSlipSection
-            storeId={store.id}
-            sample={sample}
-            initialPaperSize={store.slipPaperSize}
-            initialHeaderTemplate={store.slipHeaderTemplate}
-            initialFooterTemplate={store.slipFooterTemplate}
-          />
-        </div>
-        <div className="border-t pt-8">
-          <BillingForm />
-        </div>
+      </>
+    ),
+    "packing-slips": (
+      <PackingSlipSection
+        storeId={store.id}
+        sample={sample}
+        initialPaperSize={store.slipPaperSize}
+        initialHeaderTemplate={store.slipHeaderTemplate}
+        initialFooterTemplate={store.slipFooterTemplate}
+      />
+    ),
+    billing: <BillingForm />,
+  };
+
+  return (
+    <div className="flex-col">
+      <div className="flex-1 space-y-4 p-4 pt-4 sm:p-6 sm:pt-6 lg:p-8 lg:pt-6">
+        <SettingsTabs
+          initialTab={parseSettingsTab(Array.isArray(searchParams.tab) ? searchParams.tab[0] : searchParams.tab)}
+          panels={panels}
+        />
       </div>
     </div>
   );

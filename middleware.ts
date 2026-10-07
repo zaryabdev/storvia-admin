@@ -1,7 +1,9 @@
 import { authMiddleware } from "@clerk/nextjs";
 
 export default authMiddleware({
-  publicRoutes: ["/api/:path*"],
+  // The PWA files must be reachable signed out, or installation fails. (The
+  // matcher below already skips paths with a dot; listed here to be explicit.)
+  publicRoutes: ["/api/:path*", "/manifest.webmanifest", "/sw.js", "/offline.html", "/brand/(.*)"],
 });
 
 export const config = {
