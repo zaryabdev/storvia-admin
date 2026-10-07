@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs";
 
+import { deliverySettingsFromStore, toMerchantDeliveryBody } from "@/lib/delivery";
 import { SAMPLE_ORDER, type OrderTemplateData } from "@/lib/order-template";
 import prismadb from "@/lib/prismadb";
 
@@ -11,6 +12,7 @@ import { EmailDeliverySection } from "./components/email-delivery-section";
 import { WhatsAppTemplatesSection } from "./components/whatsapp-templates-section";
 import { SenderDetailsSection } from "./components/sender-details-section";
 import { PackingSlipSection } from "./components/packing-slip-section";
+import { DeliverySection } from "./components/delivery-section";
 
 const SettingsPage = async ({
   params
@@ -27,7 +29,10 @@ const SettingsPage = async ({
     where: {
       id: params.storeId,
       userId
-    }
+    },
+    include: {
+      deliveryCities: { select: { cityKey: true, fee: true } },
+    },
   });
 
   if (!store) {
@@ -48,7 +53,9 @@ const SettingsPage = async ({
   return ( 
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-4 pt-4 sm:p-6 sm:pt-6 lg:p-8 lg:pt-6">
-        <SettingsForm initialData={store} />
+        <SettingsForm
+          initialData={{ name: store.name, logoUrl: store.logoUrl, faviconUrl: store.faviconUrl }}
+        />
         <div className="border-t pt-8">
           <SenderDetailsSection
             storeId={store.id}
@@ -58,6 +65,12 @@ const SettingsPage = async ({
               senderAddress: store.senderAddress,
               senderCity: store.senderCity,
             }}
+          />
+        </div>
+        <div className="border-t pt-8">
+          <DeliverySection
+            storeId={store.id}
+            initialSettings={toMerchantDeliveryBody(deliverySettingsFromStore(store, store.deliveryCities))}
           />
         </div>
         <div className="border-t pt-8">

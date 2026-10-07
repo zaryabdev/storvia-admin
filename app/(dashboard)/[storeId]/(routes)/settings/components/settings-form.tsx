@@ -44,7 +44,7 @@ const formSchema = z.object({
 type SettingsFormValues = z.infer<typeof formSchema>;
 
 interface SettingsFormProps {
-    initialData: Store;
+    initialData: Pick<Store, "name" | "logoUrl" | "faviconUrl">;
 }
 
 export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {

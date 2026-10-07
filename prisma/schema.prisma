@@ -52,6 +52,16 @@ model Store {
   slipHeaderTemplate String?
   slipFooterTemplate String?
 
+  // Delivery charges (rules in lib/delivery.ts). Fee and threshold in PKR;
+  // fee 0 = free delivery; threshold null = none (compared against the items
+  // subtotal). Per-city rows: StoreDeliveryCity.
+  deliveryArea          DeliveryArea          @default(ALL_PAKISTAN)
+  deliveryFee           Decimal               @default(0)
+  freeDeliveryThreshold Decimal?
+  deliveryDaysMin       Int                   @default(2)
+  deliveryDaysMax       Int                   @default(3)
+  deliveryCities        StoreDeliveryCity[]
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
@@ -242,6 +252,26 @@ model BillboardImage {
   billboard   Billboard @relation(fields: [billboardId], references: [id], onDelete: Cascade)
 
   @@index([billboardId])
+}
+
+enum DeliveryArea {
+  ALL_PAKISTAN
+  SELECTED_CITIES
+}
+
+// One row per city with delivery settings (keys from lib/pakistan-cities.ts,
+// never "other"). SELECTED_CITIES: a row = the city is served, fee (if set)
+// overrides the default. ALL_PAKISTAN: a row only holds a fee override.
+model StoreDeliveryCity {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cityKey   String
+  fee       Decimal?
+  createdAt DateTime @default(now())
+
+  @@unique([storeId, cityKey])
+  @@index([storeId])
 }
 
 enum SlipPaperSize {

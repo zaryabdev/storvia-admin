@@ -15,10 +15,13 @@ const Navbar = async () => {
     redirect('/sign-in');
   }
 
+  // id + name only: these go to Client Components, and Store has Decimal
+  // columns (delivery fee) that can't be passed to the client.
   const stores = await prismadb.store.findMany({
     where: {
       userId,
-    }
+    },
+    select: { id: true, name: true },
   });
 
   return ( 
