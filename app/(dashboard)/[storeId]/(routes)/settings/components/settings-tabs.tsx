@@ -5,21 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-export const SETTINGS_TABS = [
-    { key: "store", label: "Store" },
-    { key: "delivery", label: "Delivery" },
-    { key: "messages", label: "Messages" },
-    { key: "packing-slips", label: "Packing slips" },
-    { key: "billing", label: "Billing" },
-] as const;
-
-export type SettingsTabKey = (typeof SETTINGS_TABS)[number]["key"];
-
-export const DEFAULT_SETTINGS_TAB: SettingsTabKey = "store";
-
-// The `?tab=` value, or the default when missing or invalid.
-export const parseSettingsTab = (value: unknown): SettingsTabKey =>
-    SETTINGS_TABS.find((tab) => tab.key === value)?.key ?? DEFAULT_SETTINGS_TAB;
+import { SETTINGS_TABS, type SettingsTabKey } from "./settings-tab-keys";
 
 interface SettingsTabsProps {
     /** The tab read from `?tab=` on the server. */

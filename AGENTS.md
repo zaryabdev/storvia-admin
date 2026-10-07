@@ -48,6 +48,7 @@ Architecture:
 - The `next/font` Google Inter fetch can fail `npm run build` in restricted environments; say so rather than treating it as a code error.
 - Clerk, Cloudinary and Resend need real keys for the related features; see `.env.example`.
 - `next build` overwrites the `.next` folder used by a running `next dev`; stop the dev server first or build in an isolated copy.
+- A "use client" file may only be rendered or passed as props from server code. Never import and call its helper functions or constants on the server. Put shared helpers in a plain module.
 
 ## Updating docs
 

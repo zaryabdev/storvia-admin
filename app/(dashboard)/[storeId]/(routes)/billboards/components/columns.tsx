@@ -6,12 +6,6 @@ import { Badge } from "@/components/ui/badge"
 
 import { CellAction } from "./cell-action"
 
-export const LAYOUT_LABELS: Record<string, string> = {
-  SPLIT: "Split",
-  FULL_BLEED: "Full-bleed",
-  HEADING_LED: "Heading-led",
-};
-
 export type BillboardColumn = {
   id: string
   label: string;

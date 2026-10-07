@@ -13,7 +13,8 @@ import { WhatsAppTemplatesSection } from "./components/whatsapp-templates-sectio
 import { SenderDetailsSection } from "./components/sender-details-section";
 import { PackingSlipSection } from "./components/packing-slip-section";
 import { DeliverySection } from "./components/delivery-section";
-import { SettingsTabs, parseSettingsTab } from "./components/settings-tabs";
+import { SettingsTabs } from "./components/settings-tabs";
+import { parseSettingsTab } from "./components/settings-tab-keys";
 
 const SettingsPage = async ({
   params,
