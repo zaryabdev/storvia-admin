@@ -62,6 +62,14 @@ model Store {
   deliveryDaysMax       Int                   @default(3)
   deliveryCities        StoreDeliveryCity[]
 
+  // Ad pixels (rules in lib/integrations.ts). A pixel id is public only while
+  // its integration is active: id set AND enabled. Disconnect = id null and
+  // enabled back to true.
+  metaPixelId        String?
+  metaPixelEnabled   Boolean @default(true)
+  tiktokPixelId      String?
+  tiktokPixelEnabled Boolean @default(true)
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)

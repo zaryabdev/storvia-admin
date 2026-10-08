@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
+import { publicPixelIds } from "@/lib/integrations";
 import prismadb from "@/lib/prismadb";
 import { storeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 
@@ -166,6 +167,10 @@ export async function GET(
                 name: true,
                 logoUrl: true,
                 faviconUrl: true,
+                metaPixelId: true,
+                metaPixelEnabled: true,
+                tiktokPixelId: true,
+                tiktokPixelEnabled: true,
             },
         });
 
@@ -173,7 +178,15 @@ export async function GET(
             return new NextResponse("Not found", { status: 404 });
         }
 
-        return NextResponse.json(store);
+        // Pixel ids only while active (null when paused or not connected);
+        // the enabled flags stay private.
+        return NextResponse.json({
+            id: store.id,
+            name: store.name,
+            logoUrl: store.logoUrl,
+            faviconUrl: store.faviconUrl,
+            ...publicPixelIds(store),
+        });
     } catch (error) {
         console.log("[PUBLIC_STORE_GET]", error);
         return new NextResponse("Internal error", { status: 500 });

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs";
 
 import { deliverySettingsFromStore, toMerchantDeliveryBody } from "@/lib/delivery";
 import { SAMPLE_ORDER, type OrderTemplateData } from "@/lib/order-template";
+import { toIntegrationsBody } from "@/lib/integrations";
 import prismadb from "@/lib/prismadb";
 
 import { SettingsForm } from "./components/settings-form";
@@ -13,6 +14,7 @@ import { WhatsAppTemplatesSection } from "./components/whatsapp-templates-sectio
 import { SenderDetailsSection } from "./components/sender-details-section";
 import { PackingSlipSection } from "./components/packing-slip-section";
 import { DeliverySection } from "./components/delivery-section";
+import { IntegrationsSection } from "./components/integrations-section";
 import { SettingsTabs } from "./components/settings-tabs";
 import { parseSettingsTab } from "./components/settings-tab-keys";
 
@@ -109,6 +111,17 @@ const SettingsPage = async ({
         initialPaperSize={store.slipPaperSize}
         initialHeaderTemplate={store.slipHeaderTemplate}
         initialFooterTemplate={store.slipFooterTemplate}
+      />
+    ),
+    integrations: (
+      <IntegrationsSection
+        storeId={store.id}
+        initialIntegrations={toIntegrationsBody({
+          metaPixelId: store.metaPixelId,
+          metaPixelEnabled: store.metaPixelEnabled,
+          tiktokPixelId: store.tiktokPixelId,
+          tiktokPixelEnabled: store.tiktokPixelEnabled,
+        })}
       />
     ),
     billing: <BillingForm />,
