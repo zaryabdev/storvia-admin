@@ -28,6 +28,8 @@ import { AlertModal } from "@/components/modals/alert-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import MultiImageUpload from "@/components/ui/multi-image-upload"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
+import { parseProductLowStockThreshold } from "@/lib/stock"
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -36,12 +38,21 @@ const formSchema = z.object({
   // "" = no sale price. The server (decimal-exact) is authoritative.
   compareAtPrice: z.string().optional(),
   quantity: z.coerce.number().int().min(0),
+  lowStockAlert: z.boolean(),
+  // "" = use the Store default. Same rule as the server (lib/stock.ts).
+  lowStockThreshold: z.string().optional(),
   categoryId: z.string().min(1),
   colorId: z.string().min(1),
   sizeId: z.string().min(1),
   isFeatured: z.boolean().default(false).optional(),
   isArchived: z.boolean().default(false).optional()
 }).superRefine((values, ctx) => {
+  const threshold = parseProductLowStockThreshold(values.lowStockThreshold ?? '');
+
+  if ('error' in threshold) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['lowStockThreshold'], message: threshold.error });
+  }
+
   const raw = (values.compareAtPrice ?? '').trim();
 
   if (raw === '') {
@@ -66,6 +77,8 @@ interface ProductFormProps {
   categories: CategoryWithParent[];
   colors: Color[];
   sizes: Size[];
+  /** The Store's default low-stock threshold (the override's placeholder). */
+  storeLowStockThreshold: number;
 };
 
 const buildCategoryOptions = (categories: CategoryWithParent[]) => {
@@ -88,7 +101,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   initialData,
   categories,
   sizes,
-  colors
+  colors,
+  storeLowStockThreshold
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -107,12 +121,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     ...initialData,
     price: parseFloat(String(initialData?.price)),
     compareAtPrice: initialData.compareAtPrice != null ? String(initialData.compareAtPrice) : '',
+    lowStockThreshold: initialData.lowStockThreshold != null ? String(initialData.lowStockThreshold) : '',
   } : {
     name: '',
     images: [],
     price: 0,
     compareAtPrice: '',
     quantity: 0,
+    lowStockAlert: true,
+    lowStockThreshold: '',
     categoryId: '',
     colorId: '',
     sizeId: '',
@@ -125,9 +142,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     defaultValues
   });
 
+  const lowStockAlert = form.watch('lowStockAlert');
+
   const onSubmit = async (values: ProductFormValues) => {
-    // Blank = no sale price: sent as null so editing can clear it.
-    const data = { ...values, compareAtPrice: values.compareAtPrice?.trim() ? values.compareAtPrice.trim() : null };
+    // Blank = no sale price / the Store default: sent as null so editing can clear it.
+    const data = {
+      ...values,
+      compareAtPrice: values.compareAtPrice?.trim() ? values.compareAtPrice.trim() : null,
+      lowStockThreshold: values.lowStockThreshold?.trim() ? values.lowStockThreshold.trim() : null,
+    };
 
     try {
       setLoading(true);
@@ -253,6 +276,51 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   <FormLabel>Quantity</FormLabel>
                   <FormControl>
                     <Input type="number" disabled={loading} placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lowStockAlert"
+              render={({ field }) => (
+                <FormItem className="flex min-w-0 flex-row items-center justify-between gap-4 space-y-0 rounded-md border p-4">
+                  <div className="min-w-0 space-y-1 leading-none">
+                    <FormLabel>Low-stock alert</FormLabel>
+                    <FormDescription>
+                      Show &apos;Only N left&apos; to shoppers and list this product on your dashboard when stock is low.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={loading}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lowStockThreshold"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alert at or below (optional)</FormLabel>
+                  <FormControl>
+                    {/* Disabled while the alert is off; the value is kept and still saved. */}
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={1000}
+                      step={1}
+                      disabled={loading || !lowStockAlert}
+                      placeholder={`Store default (${storeLowStockThreshold})`}
+                      {...field}
+                      value={field.value ?? ''}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

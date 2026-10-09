@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs";
 import { deliverySettingsFromStore, toMerchantDeliveryBody } from "@/lib/delivery";
 import { SAMPLE_ORDER, type OrderTemplateData } from "@/lib/order-template";
 import { toIntegrationsBody } from "@/lib/integrations";
+import { toStockSettings } from "@/lib/stock";
 import prismadb from "@/lib/prismadb";
 
 import { SettingsForm } from "./components/settings-form";
@@ -15,6 +16,7 @@ import { SenderDetailsSection } from "./components/sender-details-section";
 import { PackingSlipSection } from "./components/packing-slip-section";
 import { DeliverySection } from "./components/delivery-section";
 import { IntegrationsSection } from "./components/integrations-section";
+import { StockSection } from "./components/stock-section";
 import { SettingsTabs } from "./components/settings-tabs";
 import { parseSettingsTab } from "./components/settings-tab-keys";
 
@@ -64,6 +66,12 @@ const SettingsPage = async ({
         <SettingsForm
           initialData={{ name: store.name, logoUrl: store.logoUrl, faviconUrl: store.faviconUrl }}
         />
+        <div className="border-t pt-8">
+          <StockSection
+            storeId={store.id}
+            initialSettings={toStockSettings(store)}
+          />
+        </div>
         <div className="border-t pt-8">
           <ThemeSection />
         </div>

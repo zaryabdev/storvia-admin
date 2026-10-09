@@ -70,6 +70,11 @@ model Store {
   tiktokPixelId      String?
   tiktokPixelEnabled Boolean @default(true)
 
+  // Stock display (rules in lib/stock.ts). Default low-stock threshold (1–1000;
+  // a Product may override it) and what shoppers see about stock.
+  lowStockThreshold Int              @default(5)
+  stockDisplayMode  StockDisplayMode @default(WHEN_LOW)
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
@@ -282,6 +287,12 @@ model StoreDeliveryCity {
   @@index([storeId])
 }
 
+enum StockDisplayMode {
+  ALWAYS
+  WHEN_LOW
+  NEVER
+}
+
 enum SlipPaperSize {
   A5
   A4
@@ -316,26 +327,30 @@ model Category {
 }
 
 model Product {
-  id             String      @id @default(uuid())
-  storeId        String
-  categoryId     String
-  name           String
-  price          Decimal
+  id                String      @id @default(uuid())
+  storeId           String
+  categoryId        String
+  name              String
+  price             Decimal
   // Display-only "was" price for sales; never used by orders, totals, billing or metrics.
-  compareAtPrice Decimal?
-  quantity       Int         @default(0)
-  isFeatured     Boolean     @default(false)
-  isArchived     Boolean     @default(false)
-  sizeId         String
-  colorId        String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  images         Image[]
-  orderItems     OrderItem[]
-  category       Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
-  color          Color       @relation(fields: [colorId], references: [id])
-  size           Size        @relation(fields: [sizeId], references: [id])
-  store          Store       @relation("StoreToProduct", fields: [storeId], references: [id])
+  compareAtPrice    Decimal?
+  quantity          Int         @default(0)
+  // Low-stock alert (rules in lib/stock.ts). Threshold null = the Store default;
+  // kept while the alert is off, just unused.
+  lowStockAlert     Boolean     @default(true)
+  lowStockThreshold Int?
+  isFeatured        Boolean     @default(false)
+  isArchived        Boolean     @default(false)
+  sizeId            String
+  colorId           String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  images            Image[]
+  orderItems        OrderItem[]
+  category          Category    @relation("CategoryToProduct", fields: [categoryId], references: [id])
+  color             Color       @relation(fields: [colorId], references: [id])
+  size              Size        @relation(fields: [sizeId], references: [id])
+  store             Store       @relation("StoreToProduct", fields: [storeId], references: [id])
 
   @@index([storeId])
   @@index([categoryId])

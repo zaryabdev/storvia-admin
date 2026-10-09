@@ -6,6 +6,7 @@ import { productInUseMessage, inUseResponse, foreignKeyConflictResponse } from "
 import { existsInStore, findForeignReference } from "@/lib/store-scope";
 import { parseCompareAtPrice } from "@/lib/compare-at-price";
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from "@/lib/product-images";
+import { DEFAULT_STOCK_SETTINGS, STOCK_SETTINGS_SELECT, parseLowStockAlert, parseProductLowStockThreshold, stockDisplay } from "@/lib/stock";
 
 export async function GET(
   req: Request,
@@ -25,21 +26,29 @@ export async function GET(
     // Prisma 4.16 `findUnique` cannot filter on non-unique fields. A miss
     // (unknown / other Store / archived) keeps returning HTTP 200 with a
     // `null` body — Storefront's getProduct() relies on that contract.
-    const product = await prismadb.product.findFirst({
-      where: {
-        id: params.productId,
-        storeId: params.storeId,
-        isArchived: false,
-      },
-      include: {
-        images: { orderBy: [...PRODUCT_IMAGE_ORDER] },
-        category: true,
-        size: true,
-        color: true,
-      }
-    });
-  
-    return NextResponse.json(product);
+    const [store, product] = await Promise.all([
+      // Only the stock columns: they decide the product's `stockDisplay`.
+      prismadb.store.findUnique({ where: { id: params.storeId }, select: STOCK_SETTINGS_SELECT }),
+      prismadb.product.findFirst({
+        where: {
+          id: params.productId,
+          storeId: params.storeId,
+          isArchived: false,
+        },
+        include: {
+          images: { orderBy: [...PRODUCT_IMAGE_ORDER] },
+          category: true,
+          size: true,
+          color: true,
+        }
+      }),
+    ]);
+
+    if (!product) {
+      return NextResponse.json(null);
+    }
+
+    return NextResponse.json({ ...product, stockDisplay: stockDisplay(product, store ?? DEFAULT_STOCK_SETTINGS) });
   } catch (error) {
     console.log('[PRODUCT_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
@@ -105,7 +114,7 @@ export async function PATCH(
 
     const body = await req.json();
 
-    const { name, price, compareAtPrice, quantity, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
+    const { name, price, compareAtPrice, quantity, lowStockAlert, lowStockThreshold, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 401 });
@@ -142,6 +151,20 @@ export async function PATCH(
 
     if (typeof quantity !== 'number' || quantity < 0) {
       return new NextResponse("A valid quantity is required", { status: 400 });
+    }
+
+    // Missing = unchanged; otherwise a boolean.
+    const stockAlert = parseLowStockAlert(lowStockAlert);
+
+    if ("error" in stockAlert) {
+      return new NextResponse(stockAlert.error, { status: 400 });
+    }
+
+    // Missing = unchanged; null / "" = cleared (Store default); otherwise 1–1000.
+    const stockThreshold = parseProductLowStockThreshold(lowStockThreshold);
+
+    if ("error" in stockThreshold) {
+      return new NextResponse(stockThreshold.error, { status: 400 });
     }
 
     if (!categoryId) {
@@ -190,6 +213,8 @@ export async function PATCH(
           price,
           compareAtPrice: compareAt.value,
           quantity,
+          lowStockAlert: stockAlert.value,
+          lowStockThreshold: stockThreshold.value,
           categoryId,
           colorId,
           sizeId,

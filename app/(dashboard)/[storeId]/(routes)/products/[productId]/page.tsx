@@ -1,5 +1,6 @@
 import prismadb from "@/lib/prismadb";
 import { PRODUCT_IMAGE_ORDER } from "@/lib/product-images";
+import { DEFAULT_LOW_STOCK_THRESHOLD } from "@/lib/stock";
 
 import { ProductForm } from "./components/product-form";
 
@@ -42,6 +43,12 @@ const ProductPage = async ({
     },
   });
 
+  // Only the default threshold (Store has Decimal columns; never pass a full row).
+  const store = await prismadb.store.findUnique({
+    where: { id: params.storeId },
+    select: { lowStockThreshold: true },
+  });
+
   return ( 
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-4 pt-4 sm:p-6 sm:pt-6 lg:p-8 lg:pt-6">
@@ -50,6 +57,7 @@ const ProductPage = async ({
           colors={colors}
           sizes={sizes}
           initialData={product}
+          storeLowStockThreshold={store?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD}
         />
       </div>
     </div>

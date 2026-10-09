@@ -6,6 +6,7 @@ import { buildProductSearchFilter, parseSearchTerms } from '@/lib/product-search
 import { findForeignReference } from '@/lib/store-scope';
 import { parseCompareAtPrice, parseProductsLimit } from '@/lib/compare-at-price';
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from '@/lib/product-images';
+import { DEFAULT_STOCK_SETTINGS, STOCK_SETTINGS_SELECT, parseLowStockAlert, parseProductLowStockThreshold, stockDisplay } from '@/lib/stock';
 
 export async function POST(
   req: Request,
@@ -16,7 +17,7 @@ export async function POST(
 
     const body = await req.json();
 
-    const { name, price, compareAtPrice, quantity, categoryId, colorId, sizeId, images, isFeatured, isArchived } = body;
+    const { name, price, compareAtPrice, quantity, lowStockAlert, lowStockThreshold, categoryId, colorId, sizeId, images, isFeatured, isArchived } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 401 });
@@ -48,6 +49,20 @@ export async function POST(
 
     if (typeof quantity !== 'number' || quantity < 0) {
       return new NextResponse("A valid quantity is required", { status: 400 });
+    }
+
+    // Missing = on (the column default); otherwise a boolean.
+    const stockAlert = parseLowStockAlert(lowStockAlert);
+
+    if ("error" in stockAlert) {
+      return new NextResponse(stockAlert.error, { status: 400 });
+    }
+
+    // Missing / null / "" = none (use the Store default); otherwise 1–1000.
+    const stockThreshold = parseProductLowStockThreshold(lowStockThreshold);
+
+    if ("error" in stockThreshold) {
+      return new NextResponse(stockThreshold.error, { status: 400 });
     }
 
     if (!categoryId) {
@@ -89,6 +104,8 @@ export async function POST(
         price,
         compareAtPrice: compareAt.value,
         quantity,
+        lowStockAlert: stockAlert.value,
+        lowStockThreshold: stockThreshold.value,
         isFeatured,
         isArchived,
         categoryId,
@@ -158,29 +175,36 @@ export async function GET(
         : [categoryId];
     }
 
-    const products = await prismadb.product.findMany({
-      where: {
-        storeId: params.storeId,
-        categoryId: categoryIds ? { in: categoryIds } : categoryId,
-        colorId,
-        sizeId,
-        isFeatured,
-        isArchived: false,
-        // Search composes with every filter above (AND). Empty => no-op.
-        AND: buildProductSearchFilter(searchTerms),
-      },
-      include: {
-        images: { orderBy: [...PRODUCT_IMAGE_ORDER] },
-        category: true,
-        color: true,
-        size: true,
-      },
-      // `id` breaks createdAt ties so the order (and `limit`) is deterministic.
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: limit,
-    });
-  
-    return NextResponse.json(products);
+    const [store, products] = await Promise.all([
+      // Only the stock columns: they decide each product's `stockDisplay`.
+      prismadb.store.findUnique({ where: { id: params.storeId }, select: STOCK_SETTINGS_SELECT }),
+      prismadb.product.findMany({
+        where: {
+          storeId: params.storeId,
+          categoryId: categoryIds ? { in: categoryIds } : categoryId,
+          colorId,
+          sizeId,
+          isFeatured,
+          isArchived: false,
+          // Search composes with every filter above (AND). Empty => no-op.
+          AND: buildProductSearchFilter(searchTerms),
+        },
+        include: {
+          images: { orderBy: [...PRODUCT_IMAGE_ORDER] },
+          category: true,
+          color: true,
+          size: true,
+        },
+        // `id` breaks createdAt ties so the order (and `limit`) is deterministic.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit,
+      }),
+    ]);
+
+    // A missing Store has no products; the fallback only satisfies the types.
+    const settings = store ?? DEFAULT_STOCK_SETTINGS;
+
+    return NextResponse.json(products.map((product) => ({ ...product, stockDisplay: stockDisplay(product, settings) })));
   } catch (error) {
     console.log('[PRODUCTS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
