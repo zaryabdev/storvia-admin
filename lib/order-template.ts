@@ -151,7 +151,7 @@ export const ORDER_TEMPLATE_VARIABLES: Array<{
   { key: "customer_phone", label: "Customer phone", description: "The phone number the customer entered.", example: "0300 1234567" },
   { key: "customer_email", label: "Customer email", description: "The customer's email address, if given.", example: "ali@example.com" },
   { key: "store_name", label: "Store name", description: "Your Store's name.", example: "Your Store" },
-  { key: "order_number", label: "Order number", description: "The order's tracking id.", example: "ORD-261006-AB12CD" },
+  { key: "order_number", label: "Order number", description: "The order's tracking id.", example: "ORD-261006-AB12CD34" },
   { key: "order_date", label: "Order date", description: "The day the order was placed.", example: "6 Oct 2026" },
   { key: "order_status", label: "Order status", description: "Pending, Confirmed, Delivered or Canceled.", example: "Pending" },
   { key: "payment_method", label: "Payment method", description: "How the customer pays.", example: "Cash on Delivery" },
@@ -179,7 +179,7 @@ const KNOWN_KEYS = new Set(ORDER_TEMPLATE_VARIABLES.map((variable) => variable.k
 // Sample order for the Settings previews and the variable examples.
 export const SAMPLE_ORDER: OrderTemplateData = {
   storeName: "Your Store",
-  trackingId: "ORD-261006-AB12CD",
+  trackingId: "ORD-261006-AB12CD34",
   createdAt: "2026-10-06T08:00:00.000Z",
   status: "DRAFT",
   paymentMethod: "COD",
