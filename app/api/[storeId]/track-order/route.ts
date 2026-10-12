@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { PreciseDecimal } from "@/lib/decimal";
 import { formatDeliveryDays } from "@/lib/delivery";
 import { MAX_TRACKING_ID_LENGTH, phonesMatch, trackingIdCandidates } from "@/lib/order-tracking";
+import { loadPublicPaymentAccounts } from "@/lib/payment-settings";
 import prismadb from "@/lib/prismadb";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,12 @@ const money = (value: Prisma.Decimal.Value) => new PreciseDecimal(value.toString
 // POST /api/:storeId/track-order (public, guest order tracking)
 // Body { trackingId, phone } -> { order: { trackingId, status, createdAt,
 //   confirmedAt, items: [{ name, size, color, quantity, unitPrice, lineTotal }],
-//   subtotal, deliveryFee, total, currency, city, deliveryDays } }
-// Money as decimal strings. No customer details, payment details or internal
-// ids. Rules: DECISIONS.md → Guest order tracking.
+//   subtotal, deliveryFee, total, currency, city, deliveryDays, paymentMethod,
+//   isPaid, paymentAccounts } }
+// Money as decimal strings. No customer details, payment dates/channels or
+// internal ids. paymentAccounts: the Store's live accounts (public shape) for an
+// unpaid, not canceled BANK_TRANSFER order, else null. Rules: DECISIONS.md →
+// Guest order tracking.
 export async function POST(req: Request, { params }: { params: { storeId: string } }) {
     try {
         let body: unknown;
@@ -92,6 +96,12 @@ export async function POST(req: Request, { params }: { params: { storeId: string
         // Snapshot total already includes delivery; a legacy order has neither.
         const total = order.total != null ? money(order.total) : subtotal;
         const confirmed = order.status === "CONFIRMED" || order.status === "DELIVERED";
+        // Where to pay, while a bank transfer is still due (live accounts, even
+        // if bank transfer was switched off since; may be []).
+        const paymentAccounts =
+            order.paymentMethod === "BANK_TRANSFER" && !order.isPaid && order.status !== "CANCELED"
+                ? await loadPublicPaymentAccounts(order.storeId)
+                : null;
 
         return NextResponse.json(
             {
@@ -114,6 +124,9 @@ export async function POST(req: Request, { params }: { params: { storeId: string
                     currency: order.currency ?? "PKR",
                     city: order.city,
                     deliveryDays: formatDeliveryDays(order.store.deliveryDaysMin, order.store.deliveryDaysMax),
+                    paymentMethod: order.paymentMethod,
+                    isPaid: order.isPaid,
+                    paymentAccounts,
                 },
             },
             { headers },

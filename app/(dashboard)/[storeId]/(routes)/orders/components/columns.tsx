@@ -2,6 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { CellAction } from "./cell-action";
+import { PaymentSummary } from "./payment-badge";
 import { WhatsAppButton } from "./whatsapp-button";
 
 export type OrderColumn = {
@@ -31,6 +32,14 @@ export type OrderColumn = {
     status: string;
     paymentMethod: string;
     createdAt: string;
+
+    // Payment (bank transfer orders): whether it was marked paid, how, and when
+    // ("October 12th, 2026"; null while unpaid). bankTransferAvailable = the
+    // Store offers bank transfer (for "Change payment method").
+    isPaid: boolean;
+    paymentReceivedVia: string | null;
+    paidAt: string | null;
+    bankTransferAvailable: boolean;
 
     // WhatsApp button: which template applies, and the ready wa.me link
     // (null when the phone number can't be used for WhatsApp).
@@ -76,6 +85,7 @@ export const columns: ColumnDef<OrderColumn>[] = [
     {
         accessorKey: "paymentMethod",
         header: "Payment",
+        cell: ({ row }) => <PaymentSummary order={row.original} className="min-w-[120px]" />,
     },
     {
         accessorKey: "status",

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import { publicPixelIds } from "@/lib/integrations";
+import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import prismadb from "@/lib/prismadb";
 import { storeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 
@@ -171,6 +172,8 @@ export async function GET(
                 metaPixelEnabled: true,
                 tiktokPixelId: true,
                 tiktokPixelEnabled: true,
+                bankTransferEnabled: true,
+                _count: { select: { paymentAccounts: true } },
             },
         });
 
@@ -179,13 +182,19 @@ export async function GET(
         }
 
         // Pixel ids only while active (null when paused or not connected);
-        // the enabled flags stay private.
+        // the enabled flags stay private. bankTransferEnabled = bank transfer is
+        // available at checkout (enabled AND at least one account); the
+        // accounts themselves are never returned here.
         return NextResponse.json({
             id: store.id,
             name: store.name,
             logoUrl: store.logoUrl,
             faviconUrl: store.faviconUrl,
             ...publicPixelIds(store),
+            bankTransferEnabled: isBankTransferAvailable(
+                store.bankTransferEnabled,
+                store._count.paymentAccounts,
+            ),
         });
     } catch (error) {
         console.log("[PUBLIC_STORE_GET]", error);

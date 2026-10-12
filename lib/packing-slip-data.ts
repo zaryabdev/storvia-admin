@@ -4,6 +4,7 @@
 
 import { PreciseDecimal } from "./decimal";
 import type { PackingSlipOrder, PackingSlipStore } from "./packing-slip";
+import { loadPublicPaymentAccounts } from "./payment-settings";
 import prismadb from "./prismadb";
 
 export type PackingSlipData =
@@ -63,14 +64,19 @@ export async function loadPackingSlipData({
   // Snapshot total already includes delivery; a legacy order has neither.
   const total = order.total != null ? new PreciseDecimal(order.total.toString()) : subtotal;
 
+  // For {bank_details} in the header/footer templates.
+  const paymentAccounts = await loadPublicPaymentAccounts(storeId);
+
   return {
     status: "ok",
-    store,
+    store: { ...store, paymentAccounts },
     order: {
       trackingId: order.trackingId,
       createdAt: order.createdAt,
       status: order.status,
       paymentMethod: order.paymentMethod,
+      isPaid: order.isPaid,
+      paymentReceivedVia: order.paymentReceivedVia,
       customerName: order.customerName ?? "",
       email: order.email ?? "",
       phone: order.phone ?? "",

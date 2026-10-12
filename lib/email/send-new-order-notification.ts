@@ -1,4 +1,5 @@
 import { formatDeliveryFee } from "@/lib/order-template";
+import { PAYMENT_METHOD_LABELS } from "@/lib/order-payment";
 import { formatter } from "@/lib/utils";
 import { isStoreEmailDeliveryBlocked } from "@/lib/email/email-delivery";
 import { getResendClient } from "@/lib/resend";
@@ -8,6 +9,7 @@ type NotificationOrder = {
     storeId: string;
     trackingId: string;
     status: string;
+    paymentMethod: string;
     totalPrice: number;
     /** Decimal snapshot; null on legacy orders. */
     deliveryFee?: unknown;
@@ -95,6 +97,7 @@ export async function sendNewOrderNotification(order: NotificationOrder) {
         ["Tracking ID", order.trackingId],
         ["Order date", order.createdAt.toLocaleString("en-PK")],
         ["Status", order.status],
+        ["Payment method", PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod],
         ["Customer name", display(order.customerName)],
         ["Customer phone", display(order.phone)],
         ["Customer email", display(order.email)],

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import type { OrderColumn } from "./columns";
+import { ConfirmDialog } from "./confirm-dialog";
 import OrderDetailsModal from "./order-details-modal";
 import { slipHref } from "./print-slip-button";
 
@@ -36,23 +37,42 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     const params = useParams();
 
     const [openDetails, setOpenDetails] = useState(false);
+    // A status change that needs a warning first (payment is separate from
+    // status, so these only warn; the change is still allowed).
+    const [pendingStatus, setPendingStatus] = useState<"CONFIRMED" | "CANCELED" | null>(null);
+    const [updating, setUpdating] = useState(false);
 
     const allowedTargets = ALLOWED_TRANSITIONS[data.status] ?? [];
 
     const onStatusChange = useCallback(
         async (status: string) => {
             try {
+                setUpdating(true);
                 await axios.patch(`/api/${params.storeId}/orders/${data.id}`, {
                     status,
                 });
                 toast.success("Order updated.");
+                setPendingStatus(null);
                 router.refresh();
             } catch {
                 toast.error("Something went wrong.");
+            } finally {
+                setUpdating(false);
             }
         },
         [data.id, params.storeId, router],
     );
+
+    const awaitingBankTransfer = data.paymentMethod === "BANK_TRANSFER" && !data.isPaid;
+
+    // Confirming an unpaid bank transfer, or canceling a paid order, asks first.
+    const requestStatusChange = (status: "CONFIRMED" | "CANCELED") => {
+        if ((status === "CONFIRMED" && awaitingBankTransfer) || (status === "CANCELED" && data.isPaid)) {
+            setPendingStatus(status);
+            return;
+        }
+        onStatusChange(status);
+    };
 
     return (
         <>
@@ -60,6 +80,27 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 open={openDetails}
                 onClose={() => setOpenDetails(false)}
                 order={data}
+            />
+
+            <ConfirmDialog
+                open={pendingStatus === "CONFIRMED"}
+                title="Payment not received yet. Confirm anyway?"
+                description={`Order ${data.trackingId} is paid by bank transfer and isn't marked paid.`}
+                confirmLabel="Confirm anyway"
+                loading={updating}
+                onClose={() => !updating && setPendingStatus(null)}
+                onConfirm={() => onStatusChange("CONFIRMED")}
+            />
+            <ConfirmDialog
+                open={pendingStatus === "CANCELED"}
+                title="Cancel this paid order?"
+                description="Refund the customer yourself; Storvia doesn't move money."
+                confirmLabel="Cancel order"
+                cancelLabel="Keep order"
+                destructive
+                loading={updating}
+                onClose={() => !updating && setPendingStatus(null)}
+                onConfirm={() => onStatusChange("CANCELED")}
             />
 
             <DropdownMenu>
@@ -89,7 +130,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
                     {allowedTargets.includes("CONFIRMED") && (
                         <DropdownMenuItem
-                            onClick={() => onStatusChange("CONFIRMED")}
+                            onClick={() => requestStatusChange("CONFIRMED")}
                         >
                             Mark Confirmed
                         </DropdownMenuItem>
@@ -103,7 +144,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                     )}
                     {allowedTargets.includes("CANCELED") && (
                         <DropdownMenuItem
-                            onClick={() => onStatusChange("CANCELED")}
+                            onClick={() => requestStatusChange("CANCELED")}
                         >
                             Cancel Order
                         </DropdownMenuItem>

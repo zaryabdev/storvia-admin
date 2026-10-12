@@ -2,6 +2,7 @@
 
 import { CellAction } from "./cell-action";
 import { OrderColumn } from "./columns";
+import { PaymentSummary } from "./payment-badge";
 import { PrintSlipButton } from "./print-slip-button";
 import { WhatsAppButton } from "./whatsapp-button";
 
@@ -28,9 +29,7 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
 
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
                 <span className="font-medium break-words">{order.status}</span>
-                <span className="text-xs text-muted-foreground">
-                    {order.paymentMethod}
-                </span>
+                <PaymentSummary order={order} className="text-xs text-muted-foreground" />
             </div>
 
             <dl className="mt-4 grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 text-sm">

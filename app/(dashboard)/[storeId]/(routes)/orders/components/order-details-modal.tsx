@@ -2,6 +2,8 @@
 
 import { Modal } from "@/components/ui/modal";
 import type { OrderColumn } from "./columns";
+import { PaymentSummary } from "./payment-badge";
+import { PaymentSection } from "./payment-section";
 import { PrintSlipButton } from "./print-slip-button";
 import { WhatsAppButton } from "./whatsapp-button";
 
@@ -42,9 +44,10 @@ export default function OrderDetailsModal({
                         <div className="text-xs text-gray-500">
                             Payment method
                         </div>
-                        <div className="mt-1 break-words text-sm font-medium [overflow-wrap:anywhere]">
-                            {order.paymentMethod}
-                        </div>
+                        <PaymentSummary
+                            order={order}
+                            className="mt-1 text-sm font-medium [overflow-wrap:anywhere]"
+                        />
                     </div>
 
                     <div className="min-w-0 rounded-xl border p-3">
@@ -59,6 +62,8 @@ export default function OrderDetailsModal({
                     <WhatsAppButton order={order} />
                     <PrintSlipButton order={order} />
                 </div>
+
+                <PaymentSection order={order} />
 
                 {/* Customer */}
                 <div className="min-w-0 rounded-2xl border p-4">

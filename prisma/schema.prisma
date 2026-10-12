@@ -75,6 +75,13 @@ model Store {
   lowStockThreshold Int              @default(5)
   stockDisplayMode  StockDisplayMode @default(WHEN_LOW)
 
+  // Bank transfer / mobile wallet payments (rules in lib/payment-accounts.ts).
+  // Offered at checkout only while enabled AND the Store has at least one
+  // account. COD is always available. The accounts are private except through
+  // /checkout and /track-order.
+  bankTransferEnabled Boolean               @default(false)
+  paymentAccounts     StorePaymentAccount[]
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
@@ -287,6 +294,38 @@ model StoreDeliveryCity {
   @@index([storeId])
 }
 
+enum PaymentAccountType {
+  BANK
+  JAZZCASH
+  EASYPAISA
+}
+
+// An account customers can pay into (bank, Raast, JazzCash, Easypaisa). At
+// most 10 per Store, ordered by position. Field rules per type live in
+// lib/payment-accounts.ts (BANK: bankName + iban required, accountNumber and
+// raastId optional; wallets: walletNumber / tillId / qrImageUrl, at least one).
+model StorePaymentAccount {
+  id            String             @id @default(uuid())
+  storeId       String
+  store         Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  type          PaymentAccountType
+  position      Int
+  accountTitle  String
+  bankName      String?
+  // Normalised: no spaces, uppercase (PK + 22 characters).
+  iban          String?
+  accountNumber String?
+  raastId       String?
+  walletNumber  String?
+  tillId        String?
+  qrImageUrl    String?
+  note          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([storeId])
+}
+
 enum StockDisplayMode {
   ALWAYS
   WHEN_LOW
@@ -376,8 +415,12 @@ model Order {
   // subtotal + deliveryFee. NULL = a legacy order from before delivery charges.
   deliveryFee Decimal?
 
-  // payment flags
-  isPaid Boolean @default(false)
+  // Payment (separate from status; rules in lib/order-payment.ts). Only
+  // BANK_TRANSFER orders are marked paid, by the merchant; never used by sales,
+  // metrics or billing. paidAt = when it was marked paid (server time).
+  isPaid             Boolean             @default(false)
+  paidAt             DateTime?
+  paymentReceivedVia PaymentReceivedVia?
 
   // Latest CONFIRMED transition timestamp (DRAFT->CONFIRMED or CANCELED->CONFIRMED).
   // Authoritative for billing-month attribution. Null on legacy rows and on
@@ -479,4 +522,14 @@ enum OrderStatus {
 enum PaymentMethod {
   STRIPE
   COD
+  // Bank, Raast, JazzCash or Easypaisa transfer; which account was used is not recorded.
+  BANK_TRANSFER
+}
+
+enum PaymentReceivedVia {
+  BANK_TRANSFER
+  JAZZCASH
+  EASYPAISA
+  CASH
+  OTHER
 }

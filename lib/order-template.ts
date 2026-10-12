@@ -2,6 +2,9 @@
 // from an order. Shared by WhatsApp order messages (lib/whatsapp-message.ts)
 // and packing slips (lib/packing-slip.ts). Pure functions, no React.
 
+import { PAYMENT_METHOD_LABELS } from "./order-payment";
+import { formatBankDetails, type PublicPaymentAccount } from "./payment-accounts";
+
 export const MAX_ITEM_LINES = 10;
 
 // What a template can read. Plain values only, so the same function renders
@@ -36,6 +39,8 @@ export interface OrderTemplateData {
   senderPhone?: string | null;
   senderAddress?: string | null;
   senderCity?: string | null;
+  /** The Store's payment accounts in order (Settings → Payments), for {bank_details}. */
+  paymentAccounts?: PublicPaymentAccount[];
 }
 
 const money = new Intl.NumberFormat("en-PK", {
@@ -79,10 +84,6 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELED: "Canceled",
 };
 
-const PAYMENT_LABELS: Record<string, string> = {
-  COD: "Cash on Delivery",
-};
-
 const COUNTRY_NAMES: Record<string, string> = { PK: "Pakistan" };
 
 // "• Name (S, Blue) × 2", at most 10 lines, then "…aur N aur items".
@@ -118,7 +119,7 @@ function resolveVariables(data: OrderTemplateData): Record<string, string> {
     order_number: data.trackingId,
     order_date: formatDate(data.createdAt),
     order_status: STATUS_LABELS[data.status] ?? data.status,
-    payment_method: PAYMENT_LABELS[data.paymentMethod] ?? data.paymentMethod,
+    payment_method: PAYMENT_METHOD_LABELS[data.paymentMethod] ?? data.paymentMethod,
     items: formatItems(data.items),
     item_count: String(data.items.reduce((sum, item) => sum + item.quantity, 0)),
     subtotal: formatMoney(data.subtotal),
@@ -136,8 +137,38 @@ function resolveVariables(data: OrderTemplateData): Record<string, string> {
     sender_phone: data.senderPhone ?? "",
     sender_address: data.senderAddress ?? "",
     sender_city: data.senderCity ?? "",
+    bank_details: formatBankDetails(data.paymentAccounts),
   };
 }
+
+// Sample accounts for the previews and the {bank_details} example. Made-up
+// values (the IBAN only passes the checksum); never a real account.
+export const SAMPLE_PAYMENT_ACCOUNTS: PublicPaymentAccount[] = [
+  {
+    type: "BANK",
+    accountTitle: "Your Store",
+    bankName: "Your Bank",
+    iban: "PK76ABCD0000001234567890",
+    accountNumber: null,
+    raastId: null,
+    walletNumber: null,
+    tillId: null,
+    qrImageUrl: null,
+    note: null,
+  },
+  {
+    type: "JAZZCASH",
+    accountTitle: "Your Store",
+    bankName: null,
+    iban: null,
+    accountNumber: null,
+    raastId: null,
+    walletNumber: "0301 2345678",
+    tillId: null,
+    qrImageUrl: null,
+    note: null,
+  },
+];
 
 // Every variable the order data supports, in the order the help modal shows
 // them. `example` matches SAMPLE_ORDER below.
@@ -154,7 +185,7 @@ export const ORDER_TEMPLATE_VARIABLES: Array<{
   { key: "order_number", label: "Order number", description: "The order's tracking id.", example: "ORD-261006-AB12CD34" },
   { key: "order_date", label: "Order date", description: "The day the order was placed.", example: "6 Oct 2026" },
   { key: "order_status", label: "Order status", description: "Pending, Confirmed, Delivered or Canceled.", example: "Pending" },
-  { key: "payment_method", label: "Payment method", description: "How the customer pays.", example: "Cash on Delivery" },
+  { key: "payment_method", label: "Payment method", description: "How the customer pays: Cash on Delivery or Bank transfer.", example: "Cash on Delivery" },
   { key: "items", label: "Items", description: "One line per product with size, color and quantity (up to 10 lines, then a count of the rest).", example: "• Cotton Kurta (M, Blue) × 1\n• Leather Wallet (Brown) × 1\n• Lawn Dupatta × 1" },
   { key: "item_count", label: "Item count", description: "Total number of items ordered (quantities added up).", example: "3" },
   { key: "subtotal", label: "Subtotal", description: "The items' total, before anything else.", example: "Rs 4,500" },
@@ -172,6 +203,7 @@ export const ORDER_TEMPLATE_VARIABLES: Array<{
   { key: "sender_phone", label: "Sender phone", description: "Your sender phone (Settings → Sender details).", example: "042 35761234" },
   { key: "sender_address", label: "Sender address", description: "Your sender address (Settings → Sender details).", example: "Shop 4, Liberty Market" },
   { key: "sender_city", label: "Sender city", description: "Your sender city (Settings → Sender details).", example: "Lahore" },
+  { key: "bank_details", label: "Bank details", description: "Your bank and wallet accounts (Settings → Payments), one block each: title, IBAN or number. Notes and QR codes are left out.", example: formatBankDetails(SAMPLE_PAYMENT_ACCOUNTS) },
 ];
 
 const KNOWN_KEYS = new Set(ORDER_TEMPLATE_VARIABLES.map((variable) => variable.key));
@@ -205,6 +237,7 @@ export const SAMPLE_ORDER: OrderTemplateData = {
   senderPhone: "042 35761234",
   senderAddress: "Shop 4, Liberty Market",
   senderCity: "Lahore",
+  paymentAccounts: SAMPLE_PAYMENT_ACCOUNTS,
 };
 
 const TOKEN = /\{([A-Za-z0-9_]+)\}/g;

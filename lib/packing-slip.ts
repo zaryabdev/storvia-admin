@@ -11,6 +11,8 @@ import {
   renderTemplate,
   type OrderTemplateData,
 } from "./order-template";
+import { receivedViaLabel } from "./order-payment";
+import type { PublicPaymentAccount } from "./payment-accounts";
 import { isSenderDetailsComplete } from "./sender-details";
 
 export const SLIP_PAPER_SIZES = ["A5", "A4"] as const;
@@ -49,8 +51,13 @@ export interface PackingSlipItemInput {
 
 export type PackingSlipOrder = Omit<
   OrderTemplateData,
-  "storeName" | "items" | "senderName" | "senderPhone" | "senderAddress" | "senderCity"
-> & { items: PackingSlipItemInput[] };
+  "storeName" | "items" | "senderName" | "senderPhone" | "senderAddress" | "senderCity" | "paymentAccounts"
+> & {
+  items: PackingSlipItemInput[];
+  /** Bank transfer orders: whether the merchant marked it paid, and how. */
+  isPaid?: boolean;
+  paymentReceivedVia?: string | null;
+};
 
 export interface PackingSlipStore {
   name: string;
@@ -65,6 +72,8 @@ export interface PackingSlipStore {
   /** For {delivery_days}; omitted = no value. */
   deliveryDaysMin?: number;
   deliveryDaysMax?: number;
+  /** For {bank_details}; omitted = no accounts. */
+  paymentAccounts?: PublicPaymentAccount[];
 }
 
 export type PackingSlipBanner = "NOT CONFIRMED" | "CANCELED" | null;
@@ -96,14 +105,33 @@ export interface PackingSlipModel {
   }>;
   /** null when prices are hidden. `delivery` is null for a legacy order (no line). */
   totals: { subtotal: string; delivery: string | null; total: string } | null;
-  /** Always present: COD shows the amount, any other method shows prepaid. */
+  /**
+   * Always present. COD: the amount to collect. Bank transfer: paid (nothing to
+   * collect) or unpaid (a "PAYMENT NOT RECEIVED" box with the total). Legacy
+   * STRIPE: prepaid.
+   */
   amountToCollect:
     | { kind: "cod"; label: "AMOUNT TO COLLECT (COD)"; amount: string }
+    | { kind: "paid"; label: string }
+    | { kind: "unpaid"; label: "PAYMENT NOT RECEIVED (Bank transfer)"; amount: string }
     | { kind: "prepaid"; label: "PREPAID: nothing to collect" };
   notes: string;
 }
 
 const clean = (value: string | null | undefined) => (value ?? "").trim();
+
+function amountToCollect(order: PackingSlipOrder, total: string): PackingSlipModel["amountToCollect"] {
+  if (order.paymentMethod === "COD") return { kind: "cod", label: "AMOUNT TO COLLECT (COD)", amount: total };
+
+  if (order.paymentMethod === "BANK_TRANSFER") {
+    if (!order.isPaid) return { kind: "unpaid", label: "PAYMENT NOT RECEIVED (Bank transfer)", amount: total };
+
+    const via = receivedViaLabel(order.paymentReceivedVia);
+    return { kind: "paid", label: via ? `PAID (${via}): nothing to collect` : "PAID: nothing to collect" };
+  }
+
+  return { kind: "prepaid", label: "PREPAID: nothing to collect" };
+}
 
 export function buildPackingSlipModel(
   order: PackingSlipOrder,
@@ -122,6 +150,7 @@ export function buildPackingSlipModel(
     senderPhone: store.senderPhone,
     senderAddress: store.senderAddress,
     senderCity: store.senderCity,
+    paymentAccounts: store.paymentAccounts,
   };
 
   const structured = [order.addressLine1, order.addressLine2, order.city, order.postalCode].some(
@@ -170,10 +199,7 @@ export function buildPackingSlipModel(
           total,
         }
       : null,
-    amountToCollect:
-      order.paymentMethod === "COD"
-        ? { kind: "cod", label: "AMOUNT TO COLLECT (COD)", amount: total }
-        : { kind: "prepaid", label: "PREPAID: nothing to collect" },
+    amountToCollect: amountToCollect(order, total),
     notes: clean(order.customerNotes),
   };
 }

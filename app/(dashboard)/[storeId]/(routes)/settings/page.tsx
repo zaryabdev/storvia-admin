@@ -5,6 +5,12 @@ import { deliverySettingsFromStore, toMerchantDeliveryBody } from "@/lib/deliver
 import { SAMPLE_ORDER, type OrderTemplateData } from "@/lib/order-template";
 import { toIntegrationsBody } from "@/lib/integrations";
 import { toStockSettings } from "@/lib/stock";
+import {
+  PUBLIC_PAYMENT_ACCOUNT_SELECT,
+  toMerchantPaymentAccount,
+  toPublicPaymentAccount,
+} from "@/lib/payment-accounts";
+import { PAYMENT_ACCOUNT_ORDER } from "@/lib/payment-settings";
 import prismadb from "@/lib/prismadb";
 
 import { SettingsForm } from "./components/settings-form";
@@ -17,6 +23,7 @@ import { PackingSlipSection } from "./components/packing-slip-section";
 import { DeliverySection } from "./components/delivery-section";
 import { IntegrationsSection } from "./components/integrations-section";
 import { StockSection } from "./components/stock-section";
+import { PaymentsSection } from "./components/payments-section";
 import { SettingsTabs } from "./components/settings-tabs";
 import { parseSettingsTab } from "./components/settings-tab-keys";
 
@@ -40,6 +47,10 @@ const SettingsPage = async ({
     },
     include: {
       deliveryCities: { select: { cityKey: true, fee: true } },
+      paymentAccounts: {
+        orderBy: PAYMENT_ACCOUNT_ORDER,
+        select: { id: true, ...PUBLIC_PAYMENT_ACCOUNT_SELECT },
+      },
     },
   });
 
@@ -47,8 +58,8 @@ const SettingsPage = async ({
     redirect('/');
   }
 
-  // Template previews: the sample order with this Store's name and saved
-  // sender details (sample values where a field is not set yet).
+  // Template previews: the sample order with this Store's name, saved sender
+  // details and payment accounts (sample values where not set yet).
   const sample: OrderTemplateData = {
     ...SAMPLE_ORDER,
     storeName: store.name,
@@ -56,6 +67,9 @@ const SettingsPage = async ({
     senderPhone: store.senderPhone || SAMPLE_ORDER.senderPhone,
     senderAddress: store.senderAddress || SAMPLE_ORDER.senderAddress,
     senderCity: store.senderCity || SAMPLE_ORDER.senderCity,
+    paymentAccounts: store.paymentAccounts.length
+      ? store.paymentAccounts.map(toPublicPaymentAccount)
+      : SAMPLE_ORDER.paymentAccounts,
   };
 
   // Each section renders exactly once, in its tab (?tab= decides which shows
@@ -95,6 +109,15 @@ const SettingsPage = async ({
           />
         </div>
       </>
+    ),
+    payments: (
+      <PaymentsSection
+        storeId={store.id}
+        initialSettings={{
+          enabled: store.bankTransferEnabled,
+          accounts: store.paymentAccounts.map(toMerchantPaymentAccount),
+        }}
+      />
     ),
     messages: (
       <>

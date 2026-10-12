@@ -8,7 +8,9 @@ import type { PackingSlipModel } from "@/lib/packing-slip";
 // Plain CSS (em-based, black on white) so the slip prints the same in light
 // and dark mode and scales with the paper's base font size. The control bar is
 // screen-only. The amount box keeps its dark fill when printing
-// (print-color-adjust) and has a thick black border either way.
+// (print-color-adjust) and has a thick black border either way. The unpaid
+// bank-transfer box is black on white with a heavy double border, so it reads
+// the same whether or not backgrounds print.
 const STYLES = `
 .ps-root { color-scheme: light; min-height: 100vh; background: #e5e7eb; color: #000; padding: 0 0 24px; }
 .ps-controls { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #d1d5db; font-size: 14px; }
@@ -52,6 +54,8 @@ const STYLES = `
 .ps-collect { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .3em 1em; margin-top: 1em; padding: .55em .8em; background: #000; color: #fff; border: 3px solid #000; font-weight: 800; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .ps-collect-label { font-size: 1.05em; letter-spacing: .04em; }
 .ps-collect-amount { font-size: 1.9em; line-height: 1.1; white-space: nowrap; }
+.ps-collect.ps-unpaid { background: #fff; color: #000; border: 7px double #000; padding: .7em .8em; }
+.ps-unpaid .ps-collect-label { font-size: 1.25em; font-weight: 900; }
 .ps-notes { margin-top: .8em; padding: .5em .7em; border: 1px dashed #000; white-space: pre-wrap; break-inside: avoid; }
 .ps-footer { margin-top: 1em; padding-top: .6em; border-top: 1px solid #000; text-align: center; white-space: pre-wrap; break-inside: avoid; }
 .ps-message { max-width: 32rem; margin: 15vh auto 0; padding: 24px 16px; text-align: center; font-size: 16px; }
@@ -209,8 +213,8 @@ export function SlipView({
                     </div>
                 )}
 
-                <div className="ps-collect">
-                    {slip.amountToCollect.kind === "cod" ? (
+                <div className={slip.amountToCollect.kind === "unpaid" ? "ps-collect ps-unpaid" : "ps-collect"}>
+                    {slip.amountToCollect.kind === "cod" || slip.amountToCollect.kind === "unpaid" ? (
                         <>
                             <span className="ps-collect-label">{slip.amountToCollect.label}:</span>
                             <span className="ps-collect-amount">{slip.amountToCollect.amount}</span>

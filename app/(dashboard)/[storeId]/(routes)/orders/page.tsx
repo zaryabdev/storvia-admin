@@ -5,6 +5,8 @@ import { formatter } from "@/lib/utils";
 import { formatDeliveryDays } from "@/lib/delivery";
 import { formatDeliveryFee } from "@/lib/order-template";
 import { buildOrderWhatsAppUrl, whatsAppKindFor } from "@/lib/whatsapp-message";
+import { isBankTransferAvailable } from "@/lib/payment-accounts";
+import { loadPublicPaymentAccounts } from "@/lib/payment-settings";
 
 import { OrderClient } from "./components/client";
 import { OrderColumn } from "./components/columns";
@@ -36,8 +38,16 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
             senderCity: true,
             deliveryDaysMin: true,
             deliveryDaysMax: true,
+            bankTransferEnabled: true,
         },
     });
+    // The Store's accounts feed {bank_details}; with the flag they decide
+    // whether an order may switch to bank transfer.
+    const paymentAccounts = await loadPublicPaymentAccounts(params.storeId);
+    const bankTransferAvailable = isBankTransferAvailable(
+        store?.bankTransferEnabled ?? false,
+        paymentAccounts.length,
+    );
 
     const orders = await prismadb.order.findMany({
         where: { storeId: params.storeId },
@@ -94,6 +104,7 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
                 senderPhone: store?.senderPhone,
                 senderAddress: store?.senderAddress,
                 senderCity: store?.senderCity,
+                paymentAccounts,
             },
             {
                 confirmTemplate: store?.whatsappConfirmTemplate ?? null,
@@ -134,6 +145,11 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         status: item.status,
         paymentMethod: item.paymentMethod,
         createdAt: format(item.createdAt, "MMMM do, yyyy"),
+
+        isPaid: item.isPaid,
+        paymentReceivedVia: item.paymentReceivedVia,
+        paidAt: item.isPaid && item.paidAt ? format(item.paidAt, "MMMM do, yyyy") : null,
+        bankTransferAvailable,
 
         whatsappKind: whatsAppKindFor(item.status),
         whatsappUrl,
