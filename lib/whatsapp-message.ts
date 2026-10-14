@@ -64,6 +64,11 @@ export function buildWhatsAppUrl(number: string, message: string): string {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
+// Chat link with no prefilled message (no `?text=`), e.g. the Customers list.
+export function buildWhatsAppChatUrl(number: string): string {
+  return `https://wa.me/${number}`;
+}
+
 export type WhatsAppKind = "confirm" | "message";
 
 // Draft orders get the confirmation template; everything else the general one.

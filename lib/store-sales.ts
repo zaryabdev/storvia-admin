@@ -53,6 +53,32 @@ const legacyOrderSelect = {
   },
 } satisfies Prisma.OrderSelect;
 
+type AmountOrder = {
+  total: Decimal | null;
+  orderItems: Array<{ quantity: number; product: { price: Decimal } }>;
+};
+
+/**
+ * One order's amount, any status: the stored Order.total snapshot; only a
+ * legacy order with a NULL total falls back to Product.price x quantity.
+ */
+export function orderTotalAmount(order: AmountOrder): Decimal {
+  return order.total !== null ? new PreciseDecimal(order.total) : legacyOrderTotal(order.orderItems);
+}
+
+/**
+ * One order's contribution to the dashboard sales (PKR): orderTotalAmount for
+ * an eligible order (CONFIRMED + DELIVERED) in PKR or a NULL currency; null
+ * for any other status or currency.
+ */
+export function orderSalesAmount(
+  order: AmountOrder & { status: string; currency: string | null }
+): Decimal | null {
+  const eligible = (SALES_STATUSES as readonly string[]).includes(order.status);
+
+  return eligible && isDashboardCurrency(order.currency) ? orderTotalAmount(order) : null;
+}
+
 /** Number of eligible orders (CONFIRMED + DELIVERED). */
 export async function getStoreSalesCount(storeId: string): Promise<number> {
   return prismadb.order.count({ where: salesOrderWhere(storeId) });
