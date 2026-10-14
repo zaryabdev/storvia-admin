@@ -54,6 +54,11 @@ export function MainNav({
       active: pathname === `/${params.storeId}/orders`,
     },
     {
+      href: `/${params.storeId}/customers`,
+      label: 'Customers',
+      active: pathname === `/${params.storeId}/customers`,
+    },
+    {
       href: `/${params.storeId}/settings`,
       label: 'Settings',
       active: pathname === `/${params.storeId}/settings`,
@@ -64,6 +69,9 @@ export function MainNav({
     <nav
       className={cn(
         "flex items-center space-x-4 lg:space-x-6",
+        // Desktop bar: nine links can be wider than the space left, so the row
+        // scrolls sideways instead of pushing the user button off screen.
+        !mobile && "overflow-x-auto",
         mobile && "flex-col items-stretch space-x-0 space-y-1",
         className
       )}
@@ -74,7 +82,7 @@ export function MainNav({
           key={route.href}
           href={route.href}
           className={cn(
-            'text-sm font-medium transition-colors hover:text-primary',
+            'shrink-0 whitespace-nowrap text-sm font-medium transition-colors hover:text-primary',
             route.active ? 'text-black dark:text-white' : 'text-muted-foreground',
             mobile && 'rounded-md px-3 py-2 text-base hover:bg-accent'
           )}

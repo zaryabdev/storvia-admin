@@ -27,11 +27,11 @@ const Navbar = async () => {
   return ( 
     <div className="border-b">
       <div className="hidden h-16 items-center px-4 md:flex">
-        {/* Icon-only at md: this row is already full (switcher + 8 links). */}
+        {/* Icon-only at md: this row is already full (switcher + 9 links). */}
         <StorviaLogo className="mr-4" wordmarkClassName="hidden lg:inline" />
         <StoreSwitcher items={stores} />
-        <MainNav className="mx-6" />
-        <div className="ml-auto flex items-center space-x-4">
+        <MainNav className="mx-6 min-w-0" />
+        <div className="ml-auto flex shrink-0 items-center space-x-4">
           <ThemeToggle showInstall />
           <UserButton afterSignOutUrl="/" />
         </div>
