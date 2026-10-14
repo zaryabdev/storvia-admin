@@ -4,6 +4,7 @@
 
 export const SETTINGS_TABS = [
     { key: "store", label: "Store" },
+    { key: "storefront", label: "Storefront" },
     { key: "delivery", label: "Delivery" },
     { key: "payments", label: "Payments" },
     { key: "messages", label: "Messages" },

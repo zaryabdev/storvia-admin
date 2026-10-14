@@ -4,7 +4,12 @@ import { NextResponse } from "next/server";
 import { publicPixelIds } from "@/lib/integrations";
 import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import prismadb from "@/lib/prismadb";
+import { STOREFRONT_SETTINGS_SELECT, publicAnnouncement, publicSocialLinks } from "@/lib/storefront-settings";
 import { storeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
+
+// The public GET reflects Settings changes immediately (announcement, social
+// links, pixels, bank transfer): never cached.
+export const dynamic = "force-dynamic";
 
 const MAX_URL_LENGTH = 2048;
 
@@ -173,6 +178,7 @@ export async function GET(
                 tiktokPixelId: true,
                 tiktokPixelEnabled: true,
                 bankTransferEnabled: true,
+                ...STOREFRONT_SETTINGS_SELECT,
                 _count: { select: { paymentAccounts: true } },
             },
         });
@@ -184,7 +190,9 @@ export async function GET(
         // Pixel ids only while active (null when paused or not connected);
         // the enabled flags stay private. bankTransferEnabled = bank transfer is
         // available at checkout (enabled AND at least one account); the
-        // accounts themselves are never returned here.
+        // accounts themselves are never returned here. announcement = the text
+        // only while enabled (announcementEnabled stays private); socialLinks
+        // is always an object of canonical profile URLs or nulls.
         return NextResponse.json({
             id: store.id,
             name: store.name,
@@ -195,6 +203,8 @@ export async function GET(
                 store.bankTransferEnabled,
                 store._count.paymentAccounts,
             ),
+            announcement: publicAnnouncement(store),
+            socialLinks: publicSocialLinks(store),
         });
     } catch (error) {
         console.log("[PUBLIC_STORE_GET]", error);

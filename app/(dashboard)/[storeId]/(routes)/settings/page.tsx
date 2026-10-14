@@ -5,6 +5,7 @@ import { deliverySettingsFromStore, toMerchantDeliveryBody } from "@/lib/deliver
 import { SAMPLE_ORDER, type OrderTemplateData } from "@/lib/order-template";
 import { toIntegrationsBody } from "@/lib/integrations";
 import { toStockSettings } from "@/lib/stock";
+import { toStorefrontSettings } from "@/lib/storefront-settings";
 import {
   PUBLIC_PAYMENT_ACCOUNT_SELECT,
   toMerchantPaymentAccount,
@@ -23,6 +24,7 @@ import { PackingSlipSection } from "./components/packing-slip-section";
 import { DeliverySection } from "./components/delivery-section";
 import { IntegrationsSection } from "./components/integrations-section";
 import { StockSection } from "./components/stock-section";
+import { StorefrontSection } from "./components/storefront-section";
 import { PaymentsSection } from "./components/payments-section";
 import { SettingsTabs } from "./components/settings-tabs";
 import { parseSettingsTab } from "./components/settings-tab-keys";
@@ -90,6 +92,12 @@ const SettingsPage = async ({
           <ThemeSection />
         </div>
       </>
+    ),
+    storefront: (
+      <StorefrontSection
+        storeId={store.id}
+        initialSettings={toStorefrontSettings(store)}
+      />
     ),
     delivery: (
       <>

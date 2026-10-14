@@ -82,6 +82,16 @@ model Store {
   bankTransferEnabled Boolean               @default(false)
   paymentAccounts     StorePaymentAccount[]
 
+  // Storefront announcement bar and social links (rules in
+  // lib/storefront-settings.ts). The announcement is public only while enabled
+  // and non-empty; turning it off keeps the text. Social links are stored as
+  // canonical URLs rebuilt from the merchant's input.
+  announcementText    String?
+  announcementEnabled Boolean @default(false)
+  instagramUrl        String?
+  tiktokUrl           String?
+  facebookUrl         String?
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
