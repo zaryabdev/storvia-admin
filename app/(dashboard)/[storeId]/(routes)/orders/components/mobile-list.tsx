@@ -1,6 +1,7 @@
 "use client";
 
 import { CellAction } from "./cell-action";
+import { CustomerHistory } from "./customer-history";
 import { OrderColumn } from "./columns";
 import { PaymentSummary } from "./payment-badge";
 import { PrintSlipButton } from "./print-slip-button";
@@ -48,6 +49,7 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
                     <dd className="break-words font-medium [overflow-wrap:anywhere]">
                         {order.phone || "—"}
                     </dd>
+                    <CustomerHistory history={order.customerHistory} className="mt-1" />
                 </div>
                 <div className="min-w-0">
                     <dt className="text-muted-foreground">City</dt>

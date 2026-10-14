@@ -2,6 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { CellAction } from "./cell-action";
+import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
 import { WhatsAppButton } from "./whatsapp-button";
 
@@ -45,6 +46,10 @@ export type OrderColumn = {
     // (null when the phone number can't be used for WhatsApp).
     whatsappKind: "confirm" | "message";
     whatsappUrl: string | null;
+
+    // "3 orders · 2 canceled" under the phone (server-computed; null = the
+    // phone has no customer key).
+    customerHistory: { text: string; tone: "first" | "normal" | "warning" } | null;
 };
 
 export const columns: ColumnDef<OrderColumn>[] = [
@@ -72,6 +77,12 @@ export const columns: ColumnDef<OrderColumn>[] = [
     {
         accessorKey: "phone",
         header: "Phone",
+        cell: ({ row }) => (
+            <div className="min-w-[110px]">
+                <div>{row.original.phone}</div>
+                <CustomerHistory history={row.original.customerHistory} className="mt-1" />
+            </div>
+        ),
     },
     {
         accessorKey: "city",

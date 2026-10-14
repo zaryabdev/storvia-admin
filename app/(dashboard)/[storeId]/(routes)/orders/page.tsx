@@ -7,6 +7,7 @@ import { formatDeliveryFee } from "@/lib/order-template";
 import { buildOrderWhatsAppUrl, whatsAppKindFor } from "@/lib/whatsapp-message";
 import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import { loadPublicPaymentAccounts } from "@/lib/payment-settings";
+import { customerKey, customerOrderStats, type CustomerOrderStats } from "@/lib/customers";
 
 import { OrderClient } from "./components/client";
 import { OrderColumn } from "./components/columns";
@@ -21,6 +22,17 @@ function buildShippingAddress(o: any) {
 
     const formatted = parts.join(", ");
     return formatted || o.address || "";
+}
+
+// "First order" / "3 orders" / "3 orders · 2 canceled"; null when the phone has no key.
+function customerHistoryFor(stats: CustomerOrderStats | undefined): OrderColumn["customerHistory"] {
+    if (!stats) return null;
+    if (stats.orderCount <= 1) return { text: "First order", tone: "first" };
+
+    const text = `${stats.orderCount} orders`;
+    return stats.canceledCount >= 1
+        ? { text: `${text} · ${stats.canceledCount} canceled`, tone: "warning" }
+        : { text, tone: "normal" };
 }
 
 const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
@@ -60,6 +72,9 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         },
         orderBy: { createdAt: "desc" },
     });
+
+    // Customer history: computed from the orders already loaded (no extra query).
+    const historyStats = customerOrderStats(orders);
 
     const deliveryDays = store ? formatDeliveryDays(store.deliveryDaysMin, store.deliveryDaysMax) : "";
     const formattedOrders: OrderColumn[] = orders.map((item) => {
@@ -153,6 +168,8 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
 
         whatsappKind: whatsAppKindFor(item.status),
         whatsappUrl,
+
+        customerHistory: customerHistoryFor(historyStats.get(customerKey(item.phone) ?? "")),
         };
     });
 

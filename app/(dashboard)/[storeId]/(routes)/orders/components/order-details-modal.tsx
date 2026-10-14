@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/ui/modal";
 import type { OrderColumn } from "./columns";
+import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
 import { PaymentSection } from "./payment-section";
 import { PrintSlipButton } from "./print-slip-button";
@@ -83,6 +84,7 @@ export default function OrderDetailsModal({
                             <span className="text-gray-500">Phone:</span>{" "}
                             {order.phone || "—"}
                         </div>
+                        <CustomerHistory history={order.customerHistory} />
                     </div>
                 </div>
 

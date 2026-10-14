@@ -130,3 +130,28 @@ export function groupCustomers(orders: CustomerSourceOrder[], storeId: string): 
 
   return groups;
 }
+
+export type CustomerOrderStats = { orderCount: number; canceledCount: number };
+
+/**
+ * Per-customer order counts for the "Customer history on orders" line: every
+ * order of the Store, any status, grouped by customerKey (orders without a key
+ * are left out). "Canceled" = the current status is CANCELED.
+ */
+export function customerOrderStats(
+  orders: Array<{ phone: string | null | undefined; status: OrderStatus }>
+): Map<string, CustomerOrderStats> {
+  const stats = new Map<string, CustomerOrderStats>();
+
+  for (const order of orders) {
+    const key = customerKey(order.phone);
+    if (!key) continue;
+
+    const entry = stats.get(key) ?? { orderCount: 0, canceledCount: 0 };
+    entry.orderCount += 1;
+    if (order.status === "CANCELED") entry.canceledCount += 1;
+    stats.set(key, entry);
+  }
+
+  return stats;
+}
