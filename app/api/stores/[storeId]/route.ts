@@ -5,10 +5,11 @@ import { publicPixelIds } from "@/lib/integrations";
 import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import prismadb from "@/lib/prismadb";
 import { STOREFRONT_SETTINGS_SELECT, publicAnnouncement, publicSocialLinks } from "@/lib/storefront-settings";
+import { publicPageFlags } from "@/lib/store-pages";
 import { storeInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 
 // The public GET reflects Settings changes immediately (announcement, social
-// links, pixels, bank transfer): never cached.
+// links, pages, pixels, bank transfer): never cached.
 export const dynamic = "force-dynamic";
 
 const MAX_URL_LENGTH = 2048;
@@ -157,6 +158,25 @@ export async function DELETE(
     }
 }
 
+// The public `pages` flags, in their own query so a failure here never fails
+// the Store GET: on error every flag is false. Only the kinds of the enabled
+// pages with content are read, never the texts.
+async function loadPageFlags(storeId: string) {
+    try {
+        const [live, faqItemCount] = await Promise.all([
+            prismadb.storePage.findMany({
+                where: { storeId, enabled: true, OR: [{ kind: "FAQ" }, { body: { not: null } }] },
+                select: { kind: true },
+            }),
+            prismadb.storeFaqItem.count({ where: { storeId } }),
+        ]);
+        return publicPageFlags(live.map((page) => page.kind), faqItemCount);
+    } catch (error) {
+        console.log("[STORE_PAGES]", error instanceof Error ? error.message : String(error));
+        return publicPageFlags([], 0);
+    }
+}
+
 export async function GET(
     _req: Request,
     { params }: { params: { storeId: string } },
@@ -192,7 +212,9 @@ export async function GET(
         // available at checkout (enabled AND at least one account); the
         // accounts themselves are never returned here. announcement = the text
         // only while enabled (announcementEnabled stays private); socialLinks
-        // is always an object of canonical profile URLs or nulls.
+        // is always an object of canonical profile URLs or nulls. pages = which
+        // Store pages are live (enabled with content); their text is read from
+        // /api/:storeId/pages/:kind.
         return NextResponse.json({
             id: store.id,
             name: store.name,
@@ -205,6 +227,7 @@ export async function GET(
             ),
             announcement: publicAnnouncement(store),
             socialLinks: publicSocialLinks(store),
+            pages: await loadPageFlags(store.id),
         });
     } catch (error) {
         console.log("[PUBLIC_STORE_GET]", error);

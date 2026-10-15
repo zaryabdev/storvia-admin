@@ -6,6 +6,7 @@ import { SAMPLE_ORDER, type OrderTemplateData } from "@/lib/order-template";
 import { toIntegrationsBody } from "@/lib/integrations";
 import { toStockSettings } from "@/lib/stock";
 import { toStorefrontSettings } from "@/lib/storefront-settings";
+import { FAQ_ITEM_ORDER, FAQ_ITEM_SELECT, STORE_PAGE_SELECT, toStorePagesSettings } from "@/lib/store-pages";
 import {
   PUBLIC_PAYMENT_ACCOUNT_SELECT,
   toMerchantPaymentAccount,
@@ -25,6 +26,7 @@ import { DeliverySection } from "./components/delivery-section";
 import { IntegrationsSection } from "./components/integrations-section";
 import { StockSection } from "./components/stock-section";
 import { StorefrontSection } from "./components/storefront-section";
+import { PagesSection } from "./components/pages-section";
 import { PaymentsSection } from "./components/payments-section";
 import { SettingsTabs } from "./components/settings-tabs";
 import { parseSettingsTab } from "./components/settings-tab-keys";
@@ -53,6 +55,8 @@ const SettingsPage = async ({
         orderBy: PAYMENT_ACCOUNT_ORDER,
         select: { id: true, ...PUBLIC_PAYMENT_ACCOUNT_SELECT },
       },
+      pages: { select: STORE_PAGE_SELECT },
+      faqItems: { orderBy: FAQ_ITEM_ORDER, select: FAQ_ITEM_SELECT },
     },
   });
 
@@ -97,6 +101,12 @@ const SettingsPage = async ({
       <StorefrontSection
         storeId={store.id}
         initialSettings={toStorefrontSettings(store)}
+      />
+    ),
+    pages: (
+      <PagesSection
+        storeId={store.id}
+        initialSettings={toStorePagesSettings(store.pages, store.faqItems)}
       />
     ),
     delivery: (

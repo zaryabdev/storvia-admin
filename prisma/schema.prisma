@@ -92,6 +92,11 @@ model Store {
   tiktokUrl           String?
   facebookUrl         String?
 
+  // Store pages (rules in lib/store-pages.ts): About, Contact, Returns &
+  // exchanges and FAQ. A page is public only while enabled AND it has content.
+  pages    StorePage[]
+  faqItems StoreFaqItem[]
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
@@ -334,6 +339,44 @@ model StorePaymentAccount {
   updatedAt     DateTime           @updatedAt
 
   @@index([storeId])
+}
+
+enum StorePageKind {
+  ABOUT
+  CONTACT
+  RETURNS
+  FAQ
+}
+
+// One row per page the merchant has saved (a missing row = off, no text).
+// Text pages hold their plain text in body; the FAQ row uses only enabled
+// (its questions are StoreFaqItem rows). Turning a page off keeps its content.
+model StorePage {
+  id        String        @id @default(uuid())
+  storeId   String
+  store     Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  kind      StorePageKind
+  body      String?       @db.Text
+  enabled   Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([storeId, kind])
+}
+
+// An FAQ question and answer. At most 20 per Store, ordered by position
+// (0-based); saved as a whole list (delete-all + create).
+model StoreFaqItem {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  position  Int
+  question  String
+  answer    String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, position])
 }
 
 enum StockDisplayMode {
