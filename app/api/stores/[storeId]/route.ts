@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 import { publicPixelIds } from "@/lib/integrations";
+import { uploadedImageUrlError } from "@/lib/media";
 import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import prismadb from "@/lib/prismadb";
 import { STOREFRONT_SETTINGS_SELECT, publicAnnouncement, publicSocialLinks } from "@/lib/storefront-settings";
@@ -91,6 +92,15 @@ export async function PATCH(
 
         if (!favicon.valid) {
             return new NextResponse("Invalid favicon URL", { status: 400 });
+        }
+
+        // Both must be uploads to this app's Cloudinary cloud; the favicon a PNG.
+        const imageError =
+            (logo.value && uploadedImageUrlError(logo.value)) ||
+            (favicon.value && uploadedImageUrlError(favicon.value, { png: true }));
+
+        if (imageError) {
+            return new NextResponse(imageError, { status: 400 });
         }
 
         const store = await prismadb.store.update({

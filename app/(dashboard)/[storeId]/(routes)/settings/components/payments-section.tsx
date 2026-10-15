@@ -465,6 +465,7 @@ function AccountCard({
                     <div className="min-w-0 space-y-2">
                         <p className="text-sm font-medium">QR code (optional)</p>
                         <ImageUpload
+                            kind="qr"
                             disabled={disabled}
                             value={account.qrImageUrl ? [account.qrImageUrl] : []}
                             onChange={(url) => onChange("qrImageUrl", url)}

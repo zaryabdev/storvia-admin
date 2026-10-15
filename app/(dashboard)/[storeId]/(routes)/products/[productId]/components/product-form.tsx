@@ -27,13 +27,18 @@ import { Heading } from "@/components/ui/heading"
 import { AlertModal } from "@/components/modals/alert-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import MultiImageUpload from "@/components/ui/multi-image-upload"
+import { uploadedImageUrlError } from "@/lib/media"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { parseProductLowStockThreshold } from "@/lib/stock"
 
 const formSchema = z.object({
   name: z.string().min(1),
-  images: z.object({ url: z.string() }).array().min(1, "Add at least one image").max(8, "A product can have at most 8 photos."),
+  images: z.object({ url: z.string() }).array().min(1, "Add at least one image").max(8, "A product can have at most 8 photos.")
+    .superRefine((images, ctx) => {
+      const message = images.map((image) => uploadedImageUrlError(image.url)).find(Boolean);
+      if (message) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }),
   price: z.coerce.number().min(1),
   // "" = no sale price. The server (decimal-exact) is authoritative.
   compareAtPrice: z.string().optional(),
@@ -216,6 +221,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <FormLabel>Images</FormLabel>
                 <FormControl>
                   <MultiImageUpload
+                    folder="products"
                     value={field.value.map((image) => image.url)}
                     disabled={loading}
                     onChange={(urls) => field.onChange(urls.map((url) => ({ url })))}

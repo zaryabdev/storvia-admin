@@ -33,6 +33,7 @@ import { Separator } from "@/components/ui/separator"
 import { Heading } from "@/components/ui/heading"
 import { AlertModal } from "@/components/modals/alert-modal"
 import MultiImageUpload from "@/components/ui/multi-image-upload"
+import { uploadedImageUrlError } from "@/lib/media"
 import { Switch } from "@/components/ui/switch"
 
 import { LayoutPicker } from "./layout-picker"
@@ -46,7 +47,11 @@ const NO_BUTTON = "none";
 
 const formSchema = z.object({
   label: z.string().min(1),
-  images: z.object({ url: z.string() }).array().min(1, "Add at least one photo").max(MAX_PHOTOS, `A billboard can have at most ${MAX_PHOTOS} photos.`),
+  images: z.object({ url: z.string() }).array().min(1, "Add at least one photo").max(MAX_PHOTOS, `A billboard can have at most ${MAX_PHOTOS} photos.`)
+    .superRefine((images, ctx) => {
+      const message = images.map((image) => uploadedImageUrlError(image.url)).find(Boolean);
+      if (message) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }),
   layout: z.enum(["SPLIT", "FULL_BLEED", "HEADING_LED"]),
   subheading: z.string().max(MAX_SUBHEADING, `At most ${MAX_SUBHEADING} characters.`),
   showSearch: z.boolean(),
@@ -223,6 +228,7 @@ export const BillboardForm: React.FC<BillboardFormProps> = ({
                 <FormLabel>Photos</FormLabel>
                 <FormControl>
                   <MultiImageUpload
+                    folder="billboards"
                     value={field.value.map((image) => image.url)}
                     disabled={loading}
                     max={MAX_PHOTOS}

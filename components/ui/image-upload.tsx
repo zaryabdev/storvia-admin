@@ -1,20 +1,35 @@
 "use client";
 
 import { CldUploadWidget } from 'next-cloudinary';
+import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ImagePlus, Trash } from 'lucide-react';
 import Image from 'next/image';
 
+import { signedUploadWidget, type MediaFolder } from '@/lib/media';
+
+const MB = 1024 * 1024;
+const PHOTO_FORMATS = ['jpg', 'jpeg', 'png', 'webp'];
+
+// Folder, formats and file-size cap per use (the widget also downscales to
+// 2000 px). DECISIONS.md → Image delivery and uploads.
+const UPLOAD_KINDS: Record<
+  'logo' | 'favicon' | 'qr',
+  { folder: MediaFolder; formats: string[]; maxFileSize: number }
+> = {
+  logo: { folder: 'branding', formats: PHOTO_FORMATS, maxFileSize: 2 * MB },
+  favicon: { folder: 'branding', formats: ['png'], maxFileSize: 1 * MB },
+  qr: { folder: 'payments', formats: PHOTO_FORMATS, maxFileSize: 2 * MB },
+};
+
 interface ImageUploadProps {
   disabled?: boolean;
   onChange: (value: string) => void;
   onRemove: (value: string) => void;
   value: string[];
-  // Optional Cloudinary format allow-list (e.g. ["png", "ico", "svg"]).
-  // Omitted => the widget's default (any image).
-  allowedFormats?: string[];
+  kind: keyof typeof UPLOAD_KINDS;
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -22,8 +37,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   onChange,
   onRemove,
   value,
-  allowedFormats
+  kind
 }) => {
+  const params = useParams();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -37,6 +53,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   if (!isMounted) {
     return null;
   }
+
+  const upload = UPLOAD_KINDS[kind];
+  const widget = signedUploadWidget(params.storeId, upload.folder);
 
   return (
     <div>
@@ -55,6 +74,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               fill
               className="object-cover"
               alt="Image"
+              sizes="200px"
               src={url}
             />
           </div>
@@ -62,8 +82,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       </div>
       <CldUploadWidget
         onUpload={onUpload}
-        uploadPreset="tbck4c3k"
-        options={allowedFormats ? { clientAllowedFormats: allowedFormats } : undefined}
+        uploadPreset={widget.uploadPreset}
+        signatureEndpoint={widget.signatureEndpoint}
+        options={{
+          ...widget.options,
+          multiple: false,
+          clientAllowedFormats: upload.formats,
+          maxFileSize: upload.maxFileSize,
+        }}
       >
         {({ open }) => {
           const onClick = () => {

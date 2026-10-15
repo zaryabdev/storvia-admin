@@ -4,6 +4,7 @@
 // the Settings form (client-side validation with the server's messages).
 // Rules: DECISIONS.md → Bank transfer and mobile wallet payments.
 
+import { uploadedImageUrlError } from "./media";
 import { PAKISTANI_MOBILE_MESSAGE, isPakistaniMobile } from "./phone";
 
 export const PAYMENT_ACCOUNT_TYPES = ["BANK", "JAZZCASH", "EASYPAISA"] as const;
@@ -264,6 +265,8 @@ function normalizeAccount(raw: unknown): AccountResult {
 
   const qrImageUrl = value("qrImageUrl");
   if (qrImageUrl !== null && !isHttpsUrl(qrImageUrl)) return { error: "Invalid QR code image URL" };
+  const qrUploadError = qrImageUrl === null ? null : uploadedImageUrlError(qrImageUrl);
+  if (qrUploadError) return { error: qrUploadError };
 
   const note = value("note");
   if (note !== null && note.length > MAX_ACCOUNT_NOTE_LENGTH) {

@@ -1,11 +1,13 @@
 "use client";
 
 import { CldUploadWidget } from "next-cloudinary";
+import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, ImagePlus, Star, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { signedUploadWidget } from "@/lib/media";
 import { MAX_PRODUCT_IMAGES } from "@/lib/product-images";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -15,6 +17,8 @@ interface MultiImageUploadProps {
   /** Image URLs in display order; the first one is the cover. */
   value: string[];
   onChange: (urls: string[]) => void;
+  /** Cloudinary folder (under storvia/{storeId}/). */
+  folder: "products" | "billboards";
   disabled?: boolean;
   max?: number;
   /** Helper line above the photos. Defaults to the product wording. */
@@ -24,16 +28,18 @@ interface MultiImageUploadProps {
 }
 
 // Ordered photo list for products (max 8) and billboards (max 5). Reordering
-// uses buttons, not drag and drop. (The single-image ImageUpload used by the
-// logo / favicon is unchanged.)
+// uses buttons, not drag and drop. (The logo, favicon and payment QR use the
+// single-image ImageUpload.)
 const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
   value,
   onChange,
+  folder,
   disabled,
   max = MAX_PRODUCT_IMAGES,
   hint,
   photoLabel = "Product photo",
 }) => {
+  const params = useParams();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -79,6 +85,7 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
   }
 
   const remaining = Math.max(max - value.length, 0);
+  const widget = signedUploadWidget(params.storeId, folder);
   const iconButton =
     "h-11 w-11 shrink-0 p-0";
 
@@ -100,7 +107,13 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
             return (
               <li key={`${url}-${index}`} className="min-w-0 space-y-2">
                 <div className="relative aspect-square w-full overflow-hidden rounded-md border">
-                  <Image fill className="object-cover" alt={`${photoLabel} ${position}`} src={url} />
+                  <Image
+                    fill
+                    className="object-cover"
+                    alt={`${photoLabel} ${position}`}
+                    sizes="(min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+                    src={url}
+                  />
                   {index === 0 && (
                     <span className="absolute left-2 top-2 z-10 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
                       Cover
@@ -163,8 +176,10 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
       {remaining > 0 ? (
         <CldUploadWidget
           onUpload={onUpload}
-          uploadPreset="tbck4c3k"
+          uploadPreset={widget.uploadPreset}
+          signatureEndpoint={widget.signatureEndpoint}
           options={{
+            ...widget.options,
             multiple: true,
             maxFiles: remaining,
             clientAllowedFormats: ALLOWED_FORMATS,

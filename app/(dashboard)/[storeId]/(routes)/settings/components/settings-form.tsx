@@ -28,17 +28,27 @@ import ImageUpload from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useOrigin } from "@/hooks/use-origin";
+import { uploadedImageUrlError } from "@/lib/media";
+
+// Optional image URL; same rule as the server (an upload to this app's
+// Cloudinary cloud; with png, a PNG).
+const uploadedImageField = (png = false) =>
+    z.preprocess(
+        (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+        z
+            .string()
+            .url()
+            .superRefine((url, ctx) => {
+                const message = uploadedImageUrlError(url, { png });
+                if (message) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+            })
+            .optional(),
+    );
 
 const formSchema = z.object({
     name: z.string().min(2),
-    logoUrl: z.preprocess(
-        (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-        z.string().url().optional(),
-    ),
-    faviconUrl: z.preprocess(
-        (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-        z.string().url().optional(),
-    ),
+    logoUrl: uploadedImageField(),
+    faviconUrl: uploadedImageField(true),
 });
 
 type SettingsFormValues = z.infer<typeof formSchema>;
@@ -138,6 +148,7 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {
                                 <FormLabel>Brand logo</FormLabel>
                                 <FormControl>
                                     <ImageUpload
+                                        kind="logo"
                                         value={field.value ? [field.value] : []}
                                         disabled={loading}
                                         onChange={(url) => field.onChange(url)}
@@ -157,14 +168,14 @@ export const SettingsForm: React.FC<SettingsFormProps> = ({ initialData }) => {
                                 <FormControl>
                                     <ImageUpload
                                         value={field.value ? [field.value] : []}
+                                        kind="favicon"
                                         disabled={loading}
-                                        allowedFormats={["png", "ico", "svg"]}
                                         onChange={(url) => field.onChange(url)}
                                         onRemove={() => field.onChange("")}
                                     />
                                 </FormControl>
                                 <FormDescription>
-                                    Shown in the browser tab of your Storefront. Use a square image (PNG or ICO), at least 512×512.
+                                    Shown in the browser tab of your Storefront. Use a square PNG image (up to 1 MB), at least 512×512.
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
