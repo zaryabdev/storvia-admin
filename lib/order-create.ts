@@ -1,17 +1,22 @@
 // Order creation for the public checkout routes: POST /api/:storeId/cod (always
 // COD, kept for older Storefronts) and POST /api/:storeId/checkout (COD or
-// BANK_TRANSFER). Pricing, delivery, stock validation, the DRAFT status and the
-// new-order email are identical for both methods. Early failures come back as
-// ready responses carrying the CORS headers; unexpected errors are thrown to
-// the route, which logs them under its own prefix.
+// BANK_TRANSFER), and for manual orders created by the merchant in Admin
+// (POST /api/:storeId/orders, `options.manual`). Pricing, delivery, stock
+// validation, the DRAFT status and the new-order email are identical for both
+// methods. Early failures come back as ready responses carrying the CORS
+// headers (not for manual orders); unexpected errors are thrown to the route,
+// which logs them under its own prefix.
 
 import { NextResponse } from "next/server";
+import { Prisma, type OrderStatus, type PaymentMethod, type PaymentReceivedVia } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 import prismadb from "@/lib/prismadb";
 import { createTrackingId } from "@/lib/trackingId";
 import { sendNewOrderNotification } from "@/lib/email/send-new-order-notification";
-import { PAKISTANI_MOBILE_MESSAGE, isPakistaniMobile } from "@/lib/phone";
+import { customerDetailsError } from "@/lib/order-customer";
+import { InsufficientStockError } from "@/lib/order-confirm";
+import { productLabel, unavailableItemsMessage } from "@/lib/manual-order";
 import { PreciseDecimal } from "@/lib/decimal";
 import {
     DEFAULT_DELIVERY_SETTINGS,
@@ -59,6 +64,44 @@ export type CreateOrderPayload = {
     notes?: string;
 };
 
+// What every successful creation reads back (also the order passed to the route).
+const CREATED_ORDER_INCLUDE = Prisma.validator<Prisma.OrderInclude>()({
+    orderItems: {
+        include: {
+            product: { include: { size: true, color: true } },
+        },
+    },
+    store: true,
+});
+
+export type CreatedOrder = Prisma.OrderGetPayload<{ include: typeof CREATED_ORDER_INCLUDE }>;
+
+export type CreateOrderOptions = {
+    /**
+     * A manual order (POST /api/:storeId/orders, merchant only). Omitted by
+     * /cod and /checkout, which behave exactly as before. A manual order is
+     * stored with source MANUAL, inserted inside one transaction that also
+     * runs `afterCreate` (confirm, mark paid; a throw there rolls the order
+     * back, and a stock shortfall becomes a 409 naming the items), sends no
+     * new-order email, and its failures carry no CORS headers and name the
+     * unavailable items.
+     */
+    manual?: {
+        afterCreate: (
+            tx: Prisma.TransactionClient,
+            order: {
+                id: string;
+                status: OrderStatus;
+                paymentMethod: PaymentMethod;
+                isPaid: boolean;
+                paidAt: Date | null;
+                paymentReceivedVia: PaymentReceivedVia | null;
+                orderItems: Array<{ productId: string; quantity: number }>;
+            },
+        ) => Promise<void>;
+    };
+};
+
 export type CreateOrderResult =
     | { ok: false; response: NextResponse }
     | {
@@ -67,28 +110,12 @@ export type CreateOrderResult =
           body: Record<string, unknown>;
           /** The Store's accounts (public shape) for BANK_TRANSFER, else null. */
           paymentAccounts: PublicPaymentAccount[] | null;
+          /** The stored order as read back (after `afterCreate` for a manual order). */
+          order: CreatedOrder;
       };
 
 // Trimmed string, or "" for a missing or non-string value.
 const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
-
-const failText = (message: string): CreateOrderResult => ({
-    ok: false,
-    response: new NextResponse(message, { status: 400, headers: corsHeaders }),
-});
-
-// Required customer/shipping fields, checked before any database read. Returns
-// the plain-text message the Storefront shows, or null when they are valid.
-// Postal code, email, line 2 and notes are optional.
-function customerDetailsError(payload: CreateOrderPayload): string | null {
-    if (!text(payload.customer?.name)) return "Name is required";
-    if (!text(payload.customer?.phone)) return "Phone is required";
-    if (!isPakistaniMobile(text(payload.customer?.phone))) return PAKISTANI_MOBILE_MESSAGE;
-    if (!text(payload.shipping?.line1)) return "Address line 1 is required";
-    if (!text(payload.shipping?.city) && !text(payload.shipping?.cityKey)) return "City is required";
-
-    return null;
-}
 
 function buildAddressString(payload: CreateOrderPayload) {
     const parts: string[] = [];
@@ -109,7 +136,15 @@ export async function createOrder(
     storeId: string,
     payload: CreateOrderPayload,
     paymentMethod: CheckoutPaymentMethod,
+    options: CreateOrderOptions = {},
 ): Promise<CreateOrderResult> {
+    // Public checkout responses carry the CORS headers; the merchant route doesn't.
+    const headers = options.manual ? undefined : corsHeaders;
+    const failText = (message: string): CreateOrderResult => ({
+        ok: false,
+        response: new NextResponse(message, { status: 400, headers }),
+    });
+
     const items = payload?.items ?? [];
     if (!Array.isArray(items) || items.length === 0) {
         return failText("Items are required");
@@ -131,7 +166,7 @@ export async function createOrder(
                         error: "INVALID_ITEM",
                         message: "Each item requires a valid productId and a positive integer quantity.",
                     },
-                    { status: 400, headers: corsHeaders },
+                    { status: 400, headers },
                 ),
             };
         }
@@ -185,6 +220,10 @@ export async function createOrder(
     });
 
     const productsById = new Map(products.map((p) => [p.id, p]));
+    const labelFor = (productId: string) => {
+        const product = productsById.get(productId);
+        return product ? productLabel(product) : null;
+    };
 
     const unavailable: Array<{
         productId: string;
@@ -230,10 +269,12 @@ export async function createOrder(
             response: NextResponse.json(
                 {
                     error: "ORDER_NOT_PLACEABLE",
-                    message: "One or more items are unavailable in the requested quantity.",
+                    message: options.manual
+                        ? unavailableItemsMessage(unavailable, labelFor)
+                        : "One or more items are unavailable in the requested quantity.",
                     items: unavailable,
                 },
-                { status: 400, headers: corsHeaders },
+                { status: 400, headers },
             ),
         };
     }
@@ -282,9 +323,10 @@ export async function createOrder(
 
     // Order creation only records the request — it never adjusts
     // Product.quantity. Stock is committed atomically when an Admin
-    // confirms the order (see app/api/[storeId]/orders/[orderId]/route.ts).
+    // confirms the order (see app/api/[storeId]/orders/[orderId]/route.ts),
+    // or by a manual order's `afterCreate` in the same transaction.
     // Every order starts unpaid; only the merchant marks a bank transfer paid.
-    const order = await prismadb.order.create({
+    const insertOrder = (db: Prisma.TransactionClient) => db.order.create({
         data: {
             storeId,
             status: "DRAFT",
@@ -319,29 +361,68 @@ export async function createOrder(
             deliveryFee: new PreciseDecimal(deliveryFee),
             total,
             currency: "PKR",
+            // Manual orders only; checkout orders keep the column default (WEBSITE).
+            ...(options.manual ? { source: "MANUAL" as const } : {}),
         },
-        include: {
-            orderItems: {
-                include: {
-                    product: { include: { size: true, color: true } },
-                },
-            },
-            store: true,
-        },
+        include: CREATED_ORDER_INCLUDE,
     });
 
-    try {
-        await sendNewOrderNotification({
-            ...order,
-            totalPrice: Number(total),
-        });
-    } catch (notificationError) {
-        console.error("Order notification failed", notificationError);
+    let order: CreatedOrder;
+
+    if (!options.manual) {
+        order = await insertOrder(prismadb);
+    } else {
+        // Insert + afterCreate (confirm, mark paid) + read-back commit together
+        // or not at all.
+        const { afterCreate } = options.manual;
+        try {
+            order = await prismadb.$transaction(async (tx) => {
+                const created = await insertOrder(tx);
+                await afterCreate(tx, created);
+                return tx.order.findUniqueOrThrow({
+                    where: { id: created.id },
+                    include: CREATED_ORDER_INCLUDE,
+                });
+            });
+        } catch (error) {
+            // Stock ran out between the check above and the confirmation:
+            // nothing was created.
+            if (error instanceof InsufficientStockError) {
+                return {
+                    ok: false,
+                    response: NextResponse.json(
+                        {
+                            error: "INSUFFICIENT_STOCK",
+                            message: unavailableItemsMessage(
+                                error.items.map((item) => ({ ...item, reason: "INSUFFICIENT_STOCK" as const })),
+                                labelFor,
+                            ),
+                            items: error.items,
+                        },
+                        { status: 409 },
+                    ),
+                };
+            }
+            throw error;
+        }
+    }
+
+    // No new-order email for a manual order: the merchant created it.
+    if (!options.manual) {
+        try {
+            await sendNewOrderNotification({
+                ...order,
+                totalPrice: Number(total),
+            });
+        } catch (notificationError) {
+            console.error("Order notification failed", notificationError);
+        }
     }
 
     return {
         ok: true,
         paymentAccounts,
+        order,
         body: {
             orderId: order.id,
             trackingId,

@@ -459,6 +459,10 @@ model Order {
   status        OrderStatus   @default(DRAFT)
   paymentMethod PaymentMethod @default(COD)
   trackingId    String        @unique
+  // Where the order came from: WEBSITE = Storefront checkout (/cod, /checkout),
+  // MANUAL = created by the merchant in Admin (POST /api/:storeId/orders).
+  // Merchant-only: never returned by a public route.
+  source        OrderSource   @default(WEBSITE)
 
   // Nullable for legacy orders created before immutable snapshots existed.
   subtotal Decimal?
@@ -570,6 +574,11 @@ enum OrderStatus {
   CONFIRMED
   DELIVERED
   CANCELED
+}
+
+enum OrderSource {
+  WEBSITE
+  MANUAL
 }
 
 enum PaymentMethod {

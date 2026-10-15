@@ -6,6 +6,7 @@ import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
 import { PaymentSection } from "./payment-section";
 import { PrintSlipButton } from "./print-slip-button";
+import { SourceBadge } from "./source-badge";
 import { WhatsAppButton } from "./whatsapp-button";
 
 export default function OrderDetailsModal({
@@ -32,6 +33,7 @@ export default function OrderDetailsModal({
                         <div className="mt-1 break-words font-mono text-sm [overflow-wrap:anywhere]">
                             {order.trackingId}
                         </div>
+                        <SourceBadge source={order.source} className="mt-1" />
                     </div>
 
                     <div className="min-w-0 rounded-xl border p-3">

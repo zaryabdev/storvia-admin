@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { CellAction } from "./cell-action";
 import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
+import { SourceBadge } from "./source-badge";
 import { WhatsAppButton } from "./whatsapp-button";
 
 export type OrderColumn = {
@@ -33,6 +34,8 @@ export type OrderColumn = {
     status: string;
     paymentMethod: string;
     createdAt: string;
+    /** WEBSITE (Storefront checkout) or MANUAL (created in Admin; "Manual" badge). */
+    source: string;
 
     // Payment (bank transfer orders): whether it was marked paid, how, and when
     // ("October 12th, 2026"; null while unpaid). bankTransferAvailable = the
@@ -57,7 +60,10 @@ export const columns: ColumnDef<OrderColumn>[] = [
         accessorKey: "trackingId",
         header: "Tracking",
         cell: ({ row }) => (
-            <div className="font-mono text-xs">{row.original.trackingId}</div>
+            <div>
+                <div className="font-mono text-xs">{row.original.trackingId}</div>
+                <SourceBadge source={row.original.source} className="mt-1" />
+            </div>
         ),
     },
     {

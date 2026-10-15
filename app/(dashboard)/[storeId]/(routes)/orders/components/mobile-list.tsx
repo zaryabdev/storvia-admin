@@ -5,6 +5,7 @@ import { CustomerHistory } from "./customer-history";
 import { OrderColumn } from "./columns";
 import { PaymentSummary } from "./payment-badge";
 import { PrintSlipButton } from "./print-slip-button";
+import { SourceBadge } from "./source-badge";
 import { WhatsAppButton } from "./whatsapp-button";
 
 interface OrderMobileRowProps {
@@ -19,6 +20,7 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
                     <p className="break-words font-mono text-xs [overflow-wrap:anywhere]">
                         {order.trackingId}
                     </p>
+                    <SourceBadge source={order.source} className="mt-1" />
                     <p className="mt-1 break-words text-lg font-semibold [overflow-wrap:anywhere]">
                         {order.totalPrice}
                     </p>

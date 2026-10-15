@@ -3,19 +3,11 @@ import { NextResponse } from "next/server";
 import { OrderStatus } from "@prisma/client";
 import { auth } from "@clerk/nextjs";
 
-class InsufficientStockError extends Error {
-    items: Array<{ productId: string; requested: number; available: number }>;
-    constructor(items: Array<{ productId: string; requested: number; available: number }>) {
-        super("Insufficient stock");
-        this.items = items;
-    }
-}
-
-class TransitionConflictError extends Error {
-    constructor() {
-        super("Order was updated concurrently");
-    }
-}
+import {
+    InsufficientStockError,
+    TransitionConflictError,
+    confirmOrderInTransaction,
+} from "@/lib/order-confirm";
 
 // Explicit, minimal Release 1 transition matrix.
 // DRAFT is creation-only and is never a valid PATCH target.
@@ -90,65 +82,22 @@ export async function PATCH(
         }
 
         // -> CONFIRMED (from DRAFT or CANCELED): atomically claim the status
-        // transition and conditionally decrement stock for every line inside
-        // ONE transaction. Any insufficient-stock line, or losing the claim
-        // to a concurrent request, rolls back everything — never a partial
-        // confirmation.
-        //
-        // confirmedAt is set/overwritten in the same claim write as the
-        // status change (DRAFT->CONFIRMED and CANCELED->CONFIRMED both land
-        // here), so the timestamp is authoritative for the latest successful
-        // confirmation and can never be written by a transition that fails
-        // or loses the compare-and-set race.
+        // transition, set confirmedAt and conditionally decrement stock for
+        // every line inside ONE transaction (lib/order-confirm.ts, shared with
+        // manual order creation). Any insufficient-stock line, or losing the
+        // claim to a concurrent request, rolls back everything — never a
+        // partial confirmation.
         if (nextStatus === "CONFIRMED") {
             const confirmedAt = new Date();
             try {
                 const updatedOrder = await prismadb.$transaction(async (tx) => {
-                    const claim = await tx.order.updateMany({
-                        where: {
-                            id: params.orderId,
-                            storeId: params.storeId,
-                            status: previousStatus,
-                        },
-                        data: { status: "CONFIRMED", confirmedAt },
+                    await confirmOrderInTransaction(tx, {
+                        orderId: params.orderId,
+                        storeId: params.storeId,
+                        previousStatus,
+                        items: order.orderItems,
+                        confirmedAt,
                     });
-
-                    if (claim.count !== 1) {
-                        throw new TransitionConflictError();
-                    }
-
-                    const failures: Array<{
-                        productId: string;
-                        requested: number;
-                        available: number;
-                    }> = [];
-
-                    for (const item of order.orderItems) {
-                        const decremented = await tx.product.updateMany({
-                            where: {
-                                id: item.productId,
-                                storeId: order.storeId,
-                                isArchived: false,
-                                quantity: { gte: item.quantity },
-                            },
-                            data: { quantity: { decrement: item.quantity } },
-                        });
-
-                        if (decremented.count !== 1) {
-                            const product = await tx.product.findUnique({
-                                where: { id: item.productId },
-                            });
-                            failures.push({
-                                productId: item.productId,
-                                requested: item.quantity,
-                                available: product?.quantity ?? 0,
-                            });
-                        }
-                    }
-
-                    if (failures.length > 0) {
-                        throw new InsufficientStockError(failures);
-                    }
 
                     return tx.order.findUniqueOrThrow({ where: { id: params.orderId } });
                 });

@@ -160,6 +160,7 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         status: item.status,
         paymentMethod: item.paymentMethod,
         createdAt: format(item.createdAt, "MMMM do, yyyy"),
+        source: item.source,
 
         isPaid: item.isPaid,
         paymentReceivedVia: item.paymentReceivedVia,
