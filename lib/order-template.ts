@@ -2,6 +2,7 @@
 // from an order. Shared by WhatsApp order messages (lib/whatsapp-message.ts)
 // and packing slips (lib/packing-slip.ts). Pure functions, no React.
 
+import { courierDisplayName, formatCourierTracking } from "./couriers";
 import { PAYMENT_METHOD_LABELS } from "./order-payment";
 import { formatBankDetails, type PublicPaymentAccount } from "./payment-accounts";
 
@@ -41,6 +42,10 @@ export interface OrderTemplateData {
   senderCity?: string | null;
   /** The Store's payment accounts in order (Settings → Payments), for {bank_details}. */
   paymentAccounts?: PublicPaymentAccount[];
+  /** Courier and tracking number (lib/couriers.ts); missing = empty string. */
+  courier?: string | null;
+  courierName?: string | null;
+  trackingNumber?: string | null;
 }
 
 const money = new Intl.NumberFormat("en-PK", {
@@ -133,6 +138,9 @@ function resolveVariables(data: OrderTemplateData): Record<string, string> {
     delivery_notes: data.customerNotes,
     delivery_fee: formatDeliveryFee(data.deliveryFee),
     delivery_days: data.deliveryDays ?? "",
+    courier_name: courierDisplayName(data.courier, data.courierName),
+    tracking_number: (data.trackingNumber ?? "").trim(),
+    courier_tracking: formatCourierTracking(data),
     sender_name: data.senderName ?? "",
     sender_phone: data.senderPhone ?? "",
     sender_address: data.senderAddress ?? "",
@@ -199,6 +207,9 @@ export const ORDER_TEMPLATE_VARIABLES: Array<{
   { key: "delivery_notes", label: "Delivery notes", description: "The note the customer left for delivery, if any.", example: "Please call before arriving." },
   { key: "delivery_fee", label: "Delivery fee", description: "The order's delivery fee, e.g. Rs 200, or Free.", example: "Free" },
   { key: "delivery_days", label: "Delivery days", description: "Your delivery time from Settings → Delivery, e.g. 2–3.", example: "2–3" },
+  { key: "courier_name", label: "Courier", description: "The order's courier (Order details → Shipping). Empty until you add it.", example: "TCS" },
+  { key: "tracking_number", label: "Tracking number", description: "The courier's tracking number. Empty until you add it.", example: "1234567890" },
+  { key: "courier_tracking", label: "Courier and tracking", description: "Courier and tracking number together. Empty until you add them.", example: "TCS · 1234567890" },
   { key: "sender_name", label: "Sender name", description: "Your sender name (Settings → Sender details).", example: "Your Store" },
   { key: "sender_phone", label: "Sender phone", description: "Your sender phone (Settings → Sender details).", example: "042 35761234" },
   { key: "sender_address", label: "Sender address", description: "Your sender address (Settings → Sender details).", example: "Shop 4, Liberty Market" },
@@ -238,6 +249,9 @@ export const SAMPLE_ORDER: OrderTemplateData = {
   senderAddress: "Shop 4, Liberty Market",
   senderCity: "Lahore",
   paymentAccounts: SAMPLE_PAYMENT_ACCOUNTS,
+  courier: "tcs",
+  courierName: null,
+  trackingNumber: "1234567890",
 };
 
 const TOKEN = /\{([A-Za-z0-9_]+)\}/g;

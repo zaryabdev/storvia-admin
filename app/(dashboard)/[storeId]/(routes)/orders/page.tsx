@@ -9,6 +9,7 @@ import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import { loadPublicPaymentAccounts } from "@/lib/payment-settings";
 import { customerKey, customerOrderStats, type CustomerOrderStats } from "@/lib/customers";
 import { blockedPhoneKey } from "@/lib/blocked-phones";
+import { formatCourierTracking } from "@/lib/couriers";
 
 import { OrderClient } from "./components/client";
 import { OrderColumn } from "./components/columns";
@@ -128,6 +129,9 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
                 senderAddress: store?.senderAddress,
                 senderCity: store?.senderCity,
                 paymentAccounts,
+                courier: item.courier,
+                courierName: item.courierName,
+                trackingNumber: item.trackingNumber,
             },
             {
                 confirmTemplate: store?.whatsappConfirmTemplate ?? null,
@@ -174,6 +178,11 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         paymentReceivedVia: item.paymentReceivedVia,
         paidAt: item.isPaid && item.paidAt ? format(item.paidAt, "MMMM do, yyyy") : null,
         bankTransferAvailable,
+
+        courier: item.courier,
+        courierName: item.courierName,
+        trackingNumber: item.trackingNumber,
+        courierTracking: formatCourierTracking(item),
 
         whatsappKind: whatsAppKindFor(item.status),
         whatsappUrl,

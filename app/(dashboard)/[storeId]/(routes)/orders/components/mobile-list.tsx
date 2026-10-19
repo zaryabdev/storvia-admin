@@ -35,6 +35,11 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
                 <span className="font-medium break-words">{order.status}</span>
                 <PaymentSummary order={order} className="text-xs text-muted-foreground" />
             </div>
+            {order.courierTracking ? (
+                <p className="mt-1 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                    {order.courierTracking}
+                </p>
+            ) : null}
 
             <dl className="mt-4 grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div className="min-w-0">

@@ -2,6 +2,7 @@
 // functions, no React or Prisma. Templates use the shared order-template
 // engine (lib/order-template.ts), including the sender variables.
 
+import { formatCourierTracking } from "./couriers";
 import { formatDeliveryDays } from "./delivery";
 import {
   formatDate,
@@ -87,6 +88,8 @@ export interface PackingSlipModel {
   logoUrl: string | null;
   orderNumber: string;
   orderDate: string;
+  /** "Courier: TCS · 1234567890" under the date; "" = not shown. */
+  courierLine: string;
   /** Rendered header note; "" = not shown. */
   headerText: string;
   /** Rendered footer message; "" = not shown. */
@@ -165,6 +168,7 @@ export function buildPackingSlipModel(
     : [clean(order.legacyAddress)].filter(Boolean);
 
   const total = formatMoney(order.total);
+  const courierTracking = formatCourierTracking(order);
 
   return {
     paperSize: isSlipPaperSize(store.slipPaperSize) ? store.slipPaperSize : DEFAULT_SLIP_PAPER_SIZE,
@@ -174,6 +178,7 @@ export function buildPackingSlipModel(
     logoUrl: clean(store.logoUrl) || null,
     orderNumber: order.trackingId,
     orderDate: formatDate(order.createdAt),
+    courierLine: courierTracking ? `Courier: ${courierTracking}` : "",
     headerText: renderTemplate(store.slipHeaderTemplate, templateData, DEFAULT_SLIP_HEADER_TEMPLATE).trim(),
     footerText: renderTemplate(store.slipFooterTemplate, templateData, DEFAULT_SLIP_FOOTER_TEMPLATE).trim(),
     from: {

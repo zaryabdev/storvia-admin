@@ -7,6 +7,7 @@ import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
 import { PaymentSection } from "./payment-section";
 import { PrintSlipButton } from "./print-slip-button";
+import { ShippingSection } from "./shipping-section";
 import { SourceBadge } from "./source-badge";
 import { WhatsAppButton } from "./whatsapp-button";
 
@@ -117,6 +118,9 @@ export default function OrderDetailsModal({
                                 </div>
                             </div>
                         ) : null}
+                    </div>
+                    <div className="mt-4 border-t pt-3 empty:hidden">
+                        <ShippingSection order={order} />
                     </div>
                 </div>
 

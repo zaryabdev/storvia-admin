@@ -46,6 +46,13 @@ export type OrderColumn = {
     paidAt: string | null;
     bankTransferAvailable: boolean;
 
+    // Courier and tracking number (lib/couriers.ts; all three set or all
+    // null) and the display string "TCS · 1234567890" ("" when not set).
+    courier: string | null;
+    courierName: string | null;
+    trackingNumber: string | null;
+    courierTracking: string;
+
     // WhatsApp button: which template applies, and the ready wa.me link
     // (null when the phone number can't be used for WhatsApp).
     whatsappKind: "confirm" | "message";
@@ -68,6 +75,11 @@ export const columns: ColumnDef<OrderColumn>[] = [
             <div>
                 <div className="font-mono text-xs">{row.original.trackingId}</div>
                 <SourceBadge source={row.original.source} className="mt-1" />
+                {row.original.courierTracking ? (
+                    <div className="mt-1 max-w-[160px] break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                        {row.original.courierTracking}
+                    </div>
+                ) : null}
             </div>
         ),
     },

@@ -33,6 +33,7 @@ const STYLES = `
 .ps-title { font-size: .8em; font-weight: 700; letter-spacing: .14em; }
 .ps-order { font-size: 1.6em; font-weight: 800; line-height: 1.15; }
 .ps-date { font-size: .9em; }
+.ps-courier { max-width: 20em; margin: .25em 0 0 auto; font-size: .9em; font-weight: 700; }
 .ps-banner { margin-top: .8em; padding: .25em .5em; border: 3px solid #000; text-align: center; font-size: 1.8em; font-weight: 900; letter-spacing: .12em; break-inside: avoid; }
 .ps-note { margin-top: .8em; white-space: pre-wrap; }
 .ps-addresses { display: grid; grid-template-columns: 1fr 1fr; gap: .8em; margin-top: .8em; }
@@ -137,6 +138,7 @@ export function SlipView({
                         <div className="ps-title">PACKING SLIP</div>
                         <div className="ps-order ps-wrap">#{slip.orderNumber}</div>
                         <div className="ps-date">{slip.orderDate}</div>
+                        {slip.courierLine && <div className="ps-courier ps-wrap">{slip.courierLine}</div>}
                     </div>
                 </header>
 

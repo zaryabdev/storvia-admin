@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
+import { publicCourier } from "@/lib/couriers";
 import { PreciseDecimal } from "@/lib/decimal";
 import { formatDeliveryDays } from "@/lib/delivery";
 import { MAX_TRACKING_ID_LENGTH, phonesMatch, trackingIdCandidates } from "@/lib/order-tracking";
@@ -42,11 +43,12 @@ const money = (value: Prisma.Decimal.Value) => new PreciseDecimal(value.toString
 // Body { trackingId, phone } -> { order: { trackingId, status, createdAt,
 //   confirmedAt, items: [{ name, size, color, quantity, unitPrice, lineTotal }],
 //   subtotal, deliveryFee, total, currency, city, deliveryDays, paymentMethod,
-//   isPaid, paymentAccounts } }
+//   isPaid, paymentAccounts, courier } }
 // Money as decimal strings. No customer details, payment dates/channels or
 // internal ids. paymentAccounts: the Store's live accounts (public shape) for an
-// unpaid, not canceled BANK_TRANSFER order, else null. Rules: DECISIONS.md →
-// Guest order tracking.
+// unpaid, not canceled BANK_TRANSFER order, else null. courier: { name,
+// trackingNumber } for a CONFIRMED / DELIVERED order with both set, else null
+// (never the courier key). Rules: DECISIONS.md → Guest order tracking.
 export async function POST(req: Request, { params }: { params: { storeId: string } }) {
     try {
         let body: unknown;
@@ -127,6 +129,7 @@ export async function POST(req: Request, { params }: { params: { storeId: string
                     paymentMethod: order.paymentMethod,
                     isPaid: order.isPaid,
                     paymentAccounts,
+                    courier: publicCourier(order),
                 },
             },
             { headers },

@@ -500,6 +500,13 @@ model Order {
   paidAt             DateTime?
   paymentReceivedVia PaymentReceivedVia?
 
+  // Courier and tracking number (rules in lib/couriers.ts): all three set or
+  // all null. courier = a key from lib/couriers.ts; courierName only for
+  // "other". Never changes status, stock, confirmedAt or payment.
+  courier        String?
+  courierName    String?
+  trackingNumber String?
+
   // Latest CONFIRMED transition timestamp (DRAFT->CONFIRMED or CANCELED->CONFIRMED).
   // Authoritative for billing-month attribution. Null on legacy rows and on
   // orders that have never been confirmed; never backfilled from createdAt.
