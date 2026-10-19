@@ -1,6 +1,7 @@
 "use client";
 
 import { Modal } from "@/components/ui/modal";
+import { BlockPhoneAction, BlockedBadge } from "./blocked-phone";
 import type { OrderColumn } from "./columns";
 import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
@@ -86,7 +87,13 @@ export default function OrderDetailsModal({
                             <span className="text-gray-500">Phone:</span>{" "}
                             {order.phone || "—"}
                         </div>
-                        <CustomerHistory history={order.customerHistory} />
+                        <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
+                            <CustomerHistory history={order.customerHistory} />
+                            <BlockedBadge blocked={order.blockedPhoneId !== null} />
+                        </div>
+                    </div>
+                    <div className="mt-3 empty:hidden">
+                        <BlockPhoneAction phone={order.phone} blockedPhoneId={order.blockedPhoneId} />
                     </div>
                 </div>
 

@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import type { CustomerRow } from "@/lib/customer-search";
 
+import { BlockPhoneAction, BlockedBadge } from "../../orders/components/blocked-phone";
 import { PaymentSummary } from "../../orders/components/payment-badge";
 
-// Read-only: the customer, a WhatsApp chat link (no prefilled text) and every
-// order, newest first. Nothing here edits an order or puts a phone in a URL.
+// The customer, a WhatsApp chat link (no prefilled text), Block number /
+// Unblock and every order, newest first. Nothing here edits an order or puts a
+// phone in a URL.
 export default function CustomerDetailsModal({
     open,
     onClose,
@@ -38,6 +40,7 @@ export default function CustomerDetailsModal({
                         {customer.name}
                     </p>
                     <p className="break-words text-sm [overflow-wrap:anywhere]">{customer.phone}</p>
+                    <BlockedBadge blocked={customer.blockedPhoneId !== null} className="mt-1" />
                     {customer.email ? (
                         <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                             {customer.email}
@@ -80,6 +83,10 @@ export default function CustomerDetailsModal({
                         </p>
                     </div>
                 )}
+
+                <div className="empty:hidden">
+                    <BlockPhoneAction phone={customer.phone} blockedPhoneId={customer.blockedPhoneId} />
+                </div>
 
                 <div className="min-w-0 rounded-xl border p-3 text-sm">
                     <p className="break-words font-medium [overflow-wrap:anywhere]">

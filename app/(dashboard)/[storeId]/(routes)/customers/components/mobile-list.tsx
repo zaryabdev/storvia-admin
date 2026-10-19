@@ -2,6 +2,8 @@
 
 import type { CustomerRow } from "@/lib/customer-search";
 
+import { BlockedBadge } from "../../orders/components/blocked-phone";
+
 import { CustomerRowAction } from "./row-action";
 
 export function CustomerMobileRow({ customer }: { customer: CustomerRow }) {
@@ -31,6 +33,7 @@ export function CustomerMobileRow({ customer }: { customer: CustomerRow }) {
                 <div className="col-span-2 min-w-0">
                     <dt className="text-muted-foreground">Phone</dt>
                     <dd className="break-words font-medium [overflow-wrap:anywhere]">{customer.phone}</dd>
+                    <BlockedBadge blocked={customer.blockedPhoneId !== null} className="mt-1" />
                 </div>
                 <div className="min-w-0">
                     <dt className="text-muted-foreground">Orders</dt>

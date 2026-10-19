@@ -22,6 +22,8 @@ import {
     type CustomerSort,
 } from "@/lib/customer-search";
 
+import { BlockedBadge } from "../../orders/components/blocked-phone";
+import { BlockedNumbersModal, type BlockedNumberRow } from "./blocked-numbers-modal";
 import { CustomerMobileRow } from "./mobile-list";
 import { CustomerRowAction } from "./row-action";
 
@@ -39,11 +41,14 @@ const isCustomerSort = (value: string): value is CustomerSort =>
 
 interface CustomerClientProps {
     data: CustomerRow[];
+    /** The Store's blocklist, newest first. */
+    blockedNumbers: BlockedNumberRow[];
 }
 
 // Search, sort and page are client state only: nothing goes in the URL.
-export const CustomerClient: React.FC<CustomerClientProps> = ({ data }) => {
+export const CustomerClient: React.FC<CustomerClientProps> = ({ data, blockedNumbers }) => {
     const [query, setQuery] = useState("");
+    const [blockedOpen, setBlockedOpen] = useState(false);
     const [sort, setSort] = useState<CustomerSort>(DEFAULT_CUSTOMER_SORT);
     const [page, setPage] = useState(0);
 
@@ -65,9 +70,24 @@ export const CustomerClient: React.FC<CustomerClientProps> = ({ data }) => {
 
     return (
         <>
-            <Heading
-                title={`Customers (${data.length})`}
-                description="Built from your orders. Customers are matched by phone number."
+            <div className="heading-action-row">
+                <Heading
+                    title={`Customers (${data.length})`}
+                    description="Built from your orders. Customers are matched by phone number."
+                />
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setBlockedOpen(true)}
+                    className="min-h-[44px] w-full sm:min-h-0 sm:w-auto"
+                >
+                    Blocked numbers ({blockedNumbers.length})
+                </Button>
+            </div>
+            <BlockedNumbersModal
+                open={blockedOpen}
+                onClose={() => setBlockedOpen(false)}
+                items={blockedNumbers}
             />
             <Separator />
 
@@ -168,7 +188,13 @@ export const CustomerClient: React.FC<CustomerClientProps> = ({ data }) => {
                                                         </div>
                                                     ) : null}
                                                 </TableCell>
-                                                <TableCell className="whitespace-nowrap">{customer.phone}</TableCell>
+                                                <TableCell className="whitespace-nowrap">
+                                                    <div>{customer.phone}</div>
+                                                    <BlockedBadge
+                                                        blocked={customer.blockedPhoneId !== null}
+                                                        className="mt-1"
+                                                    />
+                                                </TableCell>
                                                 <TableCell>{customer.orderCount}</TableCell>
                                                 <TableCell className="whitespace-nowrap">{customer.totalSpent}</TableCell>
                                                 <TableCell className="whitespace-nowrap">{customer.lastOrderDate}</TableCell>

@@ -97,6 +97,10 @@ model Store {
   pages    StorePage[]
   faqItems StoreFaqItem[]
 
+  // Phone blocklist (rules in lib/blocked-phones.ts): website checkout refuses
+  // new orders from these numbers. At most 1,000 per Store.
+  blockedPhones BlockedPhone[]
+
   // Current Billing Plan assignment (Release 1: no history/effective-dating).
   billingPlanId String?
   billingPlan   BillingPlan? @relation("StoreCurrentBillingPlan", fields: [billingPlanId], references: [id], onDelete: Restrict)
@@ -377,6 +381,23 @@ model StoreFaqItem {
   updatedAt DateTime @updatedAt
 
   @@index([storeId, position])
+}
+
+// A Pakistani mobile the merchant blocked: /cod and /checkout refuse new
+// orders from it (manual orders are never blocked). phoneKey = "pk:" + the 92…
+// form (lib/blocked-phones.ts), so every format of one number is one row.
+model BlockedPhone {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  phoneKey  String
+  // As entered (trimmed), for display.
+  phone     String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([storeId, phoneKey])
+  @@index([storeId])
 }
 
 enum StockDisplayMode {

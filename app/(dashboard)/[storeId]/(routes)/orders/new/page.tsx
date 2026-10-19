@@ -36,6 +36,8 @@ const NewOrderPage = async ({ params }: { params: { storeId: string } }) => {
             senderPhone: true,
             senderAddress: true,
             senderCity: true,
+            // Blocked numbers: a warning under the phone field only.
+            blockedPhones: { select: { phoneKey: true } },
         },
     });
 
@@ -76,6 +78,7 @@ const NewOrderPage = async ({ params }: { params: { storeId: string } }) => {
                     storeId={store.id}
                     products={products}
                     delivery={deliverySettingsFromStore(store, store.deliveryCities)}
+                    blockedPhoneKeys={store.blockedPhones.map((row) => row.phoneKey)}
                     bankTransferAvailable={isBankTransferAvailable(
                         store.bankTransferEnabled,
                         paymentAccounts.length,

@@ -11,6 +11,7 @@ import { Heading } from "@/components/ui/heading";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { blockedPhoneKey } from "@/lib/blocked-phones";
 import { getDeliveryOptions, type DeliverySettings } from "@/lib/delivery";
 import { previewOrderTotals, type ManualOrderResponse } from "@/lib/manual-order";
 import { customerFieldError } from "@/lib/order-customer";
@@ -40,6 +41,7 @@ const EMPTY_VALUES: Values = {
 
 const PAID_VIA_MESSAGE = "Choose how you received the money.";
 const NO_ITEMS_MESSAGE = "Add at least one item.";
+const BLOCKED_PHONE_WARNING = "This number is on your blocked list.";
 
 interface NewOrderFormProps {
     storeId: string;
@@ -47,6 +49,8 @@ interface NewOrderFormProps {
     delivery: DeliverySettings;
     bankTransferAvailable: boolean;
     whatsapp: WhatsAppContext;
+    /** The Store's blocked phone keys (lib/blocked-phones.ts), for a warning only. */
+    blockedPhoneKeys: string[];
 }
 
 // The server's message for a failed create: plain text, or { message } JSON.
@@ -62,7 +66,14 @@ function serverMessage(error: any): string {
     return "Something went wrong. Please try again.";
 }
 
-export function NewOrderForm({ storeId, products, delivery, bankTransferAvailable, whatsapp }: NewOrderFormProps) {
+export function NewOrderForm({
+    storeId,
+    products,
+    delivery,
+    bankTransferAvailable,
+    whatsapp,
+    blockedPhoneKeys,
+}: NewOrderFormProps) {
     const router = useRouter();
     const options = getDeliveryOptions(delivery);
     const initialValues: Values = { ...EMPTY_VALUES, cityKey: options.lockedCityKey ?? "" };
@@ -100,6 +111,11 @@ export function NewOrderForm({ storeId, products, delivery, bankTransferAvailabl
     if (lines.length === 0) errors.items = NO_ITEMS_MESSAGE;
     const payingByBank = paymentMethod === "BANK_TRANSFER";
     if (payingByBank && alreadyPaid && !receivedVia) errors.paidVia = PAID_VIA_MESSAGE;
+
+    // A blocked number only warns: manual orders are never blocked.
+    const typedPhoneKey = blockedPhoneKey(values.phone);
+    const phoneWarning =
+        typedPhoneKey && blockedPhoneKeys.includes(typedPhoneKey) ? BLOCKED_PHONE_WARNING : undefined;
 
     const lineValues = lines.map((line) => {
         const product = productsById.get(line.productId);
@@ -217,10 +233,13 @@ export function NewOrderForm({ storeId, products, delivery, bankTransferAvailabl
         label: string,
         props: React.InputHTMLAttributes<HTMLInputElement> = {},
         hint?: string,
+        warning?: string,
     ) => {
         const id = `order-${key}`;
         const error = showError(key);
-        const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ");
+        const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null, warning ? `${id}-warning` : null]
+            .filter(Boolean)
+            .join(" ");
 
         return (
             <div className="min-w-0 space-y-2">
@@ -244,6 +263,14 @@ export function NewOrderForm({ storeId, products, delivery, bankTransferAvailabl
                 {error && (
                     <p id={`${id}-error`} className="text-sm font-medium text-destructive">
                         {error}
+                    </p>
+                )}
+                {warning && (
+                    <p
+                        id={`${id}-warning`}
+                        className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                    >
+                        {warning}
                     </p>
                 )}
             </div>
@@ -290,12 +317,18 @@ export function NewOrderForm({ storeId, products, delivery, bankTransferAvailabl
                         Customer
                     </h2>
                     {textField("name", "Name", { autoComplete: "off" })}
-                    {textField("phone", "Phone", {
-                        type: "tel",
-                        inputMode: "tel",
-                        autoComplete: "off",
-                        placeholder: "0300 1234567",
-                    })}
+                    {textField(
+                        "phone",
+                        "Phone",
+                        {
+                            type: "tel",
+                            inputMode: "tel",
+                            autoComplete: "off",
+                            placeholder: "0300 1234567",
+                        },
+                        undefined,
+                        phoneWarning,
+                    )}
                     {textField("email", "Email (optional)", { type: "email", inputMode: "email", autoComplete: "off" })}
                 </section>
 

@@ -48,7 +48,7 @@ function spentRanks(groups: CustomerGroup[]): Map<string, number> {
 const searchDigits = (key: string) =>
   key.startsWith("pk:") ? `${key.slice(3)} 0${key.slice(5)}` : key.slice(2);
 
-function toCustomerRow(group: CustomerGroup, spentRank: number): CustomerRow {
+function toCustomerRow(group: CustomerGroup, spentRank: number, blockedPhoneId: string | null): CustomerRow {
   const whatsappNumber = toWhatsAppNumber(group.phone);
 
   return {
@@ -65,6 +65,7 @@ function toCustomerRow(group: CustomerGroup, spentRank: number): CustomerRow {
     lastOrderDate: formatDate(group.lastOrderAt),
     lastOrderAt: group.lastOrderAt.getTime(),
     whatsappUrl: whatsappNumber ? buildWhatsAppChatUrl(whatsappNumber) : null,
+    blockedPhoneId,
     orders: group.orders.map((order) => ({
       id: order.id,
       trackingId: order.trackingId,
@@ -80,9 +81,14 @@ function toCustomerRow(group: CustomerGroup, spentRank: number): CustomerRow {
 
 /**
  * The Store's customers, newest last order first. Assumes the caller has
- * already checked that the signed-in user owns the Store.
+ * already checked that the signed-in user owns the Store. `blockedIdByKey`
+ * maps the Store's blocked phone keys to their row ids (a blocked key equals
+ * the customer key of that mobile).
  */
-export async function loadStoreCustomers(storeId: string): Promise<CustomerRow[]> {
+export async function loadStoreCustomers(
+  storeId: string,
+  blockedIdByKey: Map<string, string>
+): Promise<CustomerRow[]> {
   const orders = await prismadb.order.findMany({
     where: { storeId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -93,6 +99,6 @@ export async function loadStoreCustomers(storeId: string): Promise<CustomerRow[]
   const ranks = spentRanks(groups);
 
   return groups
-    .map((group) => toCustomerRow(group, ranks.get(group.key) ?? 0))
+    .map((group) => toCustomerRow(group, ranks.get(group.key) ?? 0, blockedIdByKey.get(group.key) ?? null))
     .sort(CUSTOMER_COMPARATORS.lastOrder);
 }

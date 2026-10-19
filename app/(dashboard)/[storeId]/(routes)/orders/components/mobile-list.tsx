@@ -1,5 +1,6 @@
 "use client";
 
+import { BlockedBadge } from "./blocked-phone";
 import { CellAction } from "./cell-action";
 import { CustomerHistory } from "./customer-history";
 import { OrderColumn } from "./columns";
@@ -51,7 +52,10 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
                     <dd className="break-words font-medium [overflow-wrap:anywhere]">
                         {order.phone || "—"}
                     </dd>
-                    <CustomerHistory history={order.customerHistory} className="mt-1" />
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
+                        <CustomerHistory history={order.customerHistory} />
+                        <BlockedBadge blocked={order.blockedPhoneId !== null} />
+                    </div>
                 </div>
                 <div className="min-w-0">
                     <dt className="text-muted-foreground">City</dt>

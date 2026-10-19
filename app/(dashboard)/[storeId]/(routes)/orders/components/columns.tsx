@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { BlockedBadge } from "./blocked-phone";
 import { CellAction } from "./cell-action";
 import { CustomerHistory } from "./customer-history";
 import { PaymentSummary } from "./payment-badge";
@@ -53,6 +54,10 @@ export type OrderColumn = {
     // "3 orders · 2 canceled" under the phone (server-computed; null = the
     // phone has no customer key).
     customerHistory: { text: string; tone: "first" | "normal" | "warning" } | null;
+
+    // The phone's row on the Store's blocklist ("Blocked" badge, Unblock), or
+    // null when the number isn't blocked.
+    blockedPhoneId: string | null;
 };
 
 export const columns: ColumnDef<OrderColumn>[] = [
@@ -86,7 +91,10 @@ export const columns: ColumnDef<OrderColumn>[] = [
         cell: ({ row }) => (
             <div className="min-w-[110px]">
                 <div>{row.original.phone}</div>
-                <CustomerHistory history={row.original.customerHistory} className="mt-1" />
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
+                    <CustomerHistory history={row.original.customerHistory} />
+                    <BlockedBadge blocked={row.original.blockedPhoneId !== null} />
+                </div>
             </div>
         ),
     },

@@ -8,6 +8,7 @@ import { buildOrderWhatsAppUrl, whatsAppKindFor } from "@/lib/whatsapp-message";
 import { isBankTransferAvailable } from "@/lib/payment-accounts";
 import { loadPublicPaymentAccounts } from "@/lib/payment-settings";
 import { customerKey, customerOrderStats, type CustomerOrderStats } from "@/lib/customers";
+import { blockedPhoneKey } from "@/lib/blocked-phones";
 
 import { OrderClient } from "./components/client";
 import { OrderColumn } from "./components/columns";
@@ -75,6 +76,13 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
 
     // Customer history: computed from the orders already loaded (no extra query).
     const historyStats = customerOrderStats(orders);
+
+    // The Store's blocklist, for the "Blocked" badge and Block / Unblock (one query).
+    const blockedPhones = await prismadb.blockedPhone.findMany({
+        where: { storeId: params.storeId },
+        select: { id: true, phoneKey: true },
+    });
+    const blockedIdByKey = new Map(blockedPhones.map((row) => [row.phoneKey, row.id]));
 
     const deliveryDays = store ? formatDeliveryDays(store.deliveryDaysMin, store.deliveryDaysMax) : "";
     const formattedOrders: OrderColumn[] = orders.map((item) => {
@@ -171,6 +179,7 @@ const OrdersPage = async ({ params }: { params: { storeId: string } }) => {
         whatsappUrl,
 
         customerHistory: customerHistoryFor(historyStats.get(customerKey(item.phone) ?? "")),
+        blockedPhoneId: blockedIdByKey.get(blockedPhoneKey(item.phone) ?? "") ?? null,
         };
     });
 

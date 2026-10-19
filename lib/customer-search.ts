@@ -46,6 +46,8 @@ export type CustomerRow = {
   lastOrderAt: number;
   /** wa.me chat link with no text; null when the phone isn't a Pakistani mobile. */
   whatsappUrl: string | null;
+  /** The customer's row on the Store's blocklist, or null when not blocked. */
+  blockedPhoneId: string | null;
   /** Newest first. */
   orders: CustomerOrderRow[];
 };

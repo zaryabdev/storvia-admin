@@ -3,9 +3,11 @@
 // BANK_TRANSFER), and for manual orders created by the merchant in Admin
 // (POST /api/:storeId/orders, `options.manual`). Pricing, delivery, stock
 // validation, the DRAFT status and the new-order email are identical for both
-// methods. Early failures come back as ready responses carrying the CORS
-// headers (not for manual orders); unexpected errors are thrown to the route,
-// which logs them under its own prefix.
+// methods. /cod and /checkout refuse a phone on the Store's blocklist
+// (lib/blocked-phones.ts); manual orders never do. Early failures come back as
+// ready responses carrying the CORS headers (not for manual orders);
+// unexpected errors are thrown to the route, which logs them under its own
+// prefix.
 
 import { NextResponse } from "next/server";
 import { Prisma, type OrderStatus, type PaymentMethod, type PaymentReceivedVia } from "@prisma/client";
@@ -15,6 +17,7 @@ import prismadb from "@/lib/prismadb";
 import { createTrackingId } from "@/lib/trackingId";
 import { sendNewOrderNotification } from "@/lib/email/send-new-order-notification";
 import { customerDetailsError } from "@/lib/order-customer";
+import { BLOCKED_ORDER_MESSAGE, blockedPhoneKey } from "@/lib/blocked-phones";
 import { InsufficientStockError } from "@/lib/order-confirm";
 import { productLabel, unavailableItemsMessage } from "@/lib/manual-order";
 import { PreciseDecimal } from "@/lib/decimal";
@@ -132,6 +135,25 @@ function buildAddressString(payload: CreateOrderPayload) {
     return parts.join(", ");
 }
 
+// One indexed lookup by { storeId, phoneKey }. Fails open: if the lookup
+// throws, the order is allowed (a blocklist outage must never stop real
+// sales); only the error name is logged, never the phone.
+async function isPhoneBlocked(storeId: string, phone: unknown): Promise<boolean> {
+    const phoneKey = blockedPhoneKey(phone);
+    if (!phoneKey) return false;
+
+    try {
+        const blocked = await prismadb.blockedPhone.findUnique({
+            where: { storeId_phoneKey: { storeId, phoneKey } },
+            select: { id: true },
+        });
+        return blocked !== null;
+    } catch (error) {
+        console.log("[BLOCKLIST]", error instanceof Error ? error.name : "Unknown error");
+        return false;
+    }
+}
+
 export async function createOrder(
     storeId: string,
     payload: CreateOrderPayload,
@@ -175,6 +197,13 @@ export async function createOrder(
     const detailsError = customerDetailsError(payload);
     if (detailsError) {
         return failText(detailsError);
+    }
+
+    // Phone blocklist: website checkout only (a manual order is never blocked),
+    // before any other database read. Nothing is created and no email is sent.
+    if (!options.manual && (await isPhoneBlocked(storeId, payload.customer?.phone))) {
+        console.log("[ORDER_BLOCKED]", `Store ${storeId}`);
+        return failText(BLOCKED_ORDER_MESSAGE);
     }
 
     // Bank transfer only while the Store offers it (enabled + at least one account).
