@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import type { CustomerRow } from "@/lib/customer-search";
+import { orderStatusLabel } from "@/lib/order-status";
 
 import { BlockPhoneAction, BlockedBadge } from "../../orders/components/blocked-phone";
 import { PaymentSummary } from "../../orders/components/payment-badge";
@@ -111,7 +112,7 @@ export default function CustomerDetailsModal({
                                 </div>
                                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                                     <span className="text-muted-foreground">{order.date}</span>
-                                    <span className="font-medium">{order.status}</span>
+                                    <span className="font-medium">{orderStatusLabel(order.status)}</span>
                                     <PaymentSummary order={order} className="text-xs text-muted-foreground" />
                                 </div>
                             </li>

@@ -7,6 +7,7 @@ import { toast } from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
 import type { ManualOrderResponse } from "@/lib/manual-order";
+import { orderStatusLabel } from "@/lib/order-status";
 import { formatDeliveryFee } from "@/lib/order-template";
 import type { PublicPaymentAccount } from "@/lib/payment-accounts";
 import { formatter } from "@/lib/utils";
@@ -132,7 +133,7 @@ export function OrderCreated({ storeId, order, whatsapp, onCreateAnother }: Orde
                 <dl className="mt-4 space-y-2 text-sm">
                     <div className="flex min-w-0 justify-between gap-4">
                         <dt className="text-muted-foreground">Status</dt>
-                        <dd className="text-right font-medium">{order.status}</dd>
+                        <dd className="text-right font-medium">{orderStatusLabel(order.status)}</dd>
                     </div>
                     <div className="flex min-w-0 justify-between gap-4">
                         <dt className="text-muted-foreground">Payment</dt>

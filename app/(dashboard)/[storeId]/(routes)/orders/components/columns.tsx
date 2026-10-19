@@ -1,6 +1,9 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+
+import { orderStatusLabel } from "@/lib/order-status";
+
 import { BlockedBadge } from "./blocked-phone";
 import { CellAction } from "./cell-action";
 import { CustomerHistory } from "./customer-history";
@@ -131,7 +134,7 @@ export const columns: ColumnDef<OrderColumn>[] = [
             const v = row.original.status;
             return (
                 <div className="flex items-center gap-2">
-                    <span className="text-sm">{v}</span>
+                    <span className="text-sm">{orderStatusLabel(v)}</span>
                 </div>
             );
         },

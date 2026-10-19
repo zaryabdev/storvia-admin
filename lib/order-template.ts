@@ -4,6 +4,7 @@
 
 import { courierDisplayName, formatCourierTracking } from "./couriers";
 import { PAYMENT_METHOD_LABELS } from "./order-payment";
+import { orderStatusLabel } from "./order-status";
 import { formatBankDetails, type PublicPaymentAccount } from "./payment-accounts";
 
 export const MAX_ITEM_LINES = 10;
@@ -82,13 +83,6 @@ export const formatDate = (value: Date | string) => {
       }).format(date);
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Pending",
-  CONFIRMED: "Confirmed",
-  DELIVERED: "Delivered",
-  CANCELED: "Canceled",
-};
-
 const COUNTRY_NAMES: Record<string, string> = { PK: "Pakistan" };
 
 // "• Name (S, Blue) × 2", at most 10 lines, then "…aur N aur items".
@@ -123,7 +117,7 @@ function resolveVariables(data: OrderTemplateData): Record<string, string> {
     store_name: data.storeName,
     order_number: data.trackingId,
     order_date: formatDate(data.createdAt),
-    order_status: STATUS_LABELS[data.status] ?? data.status,
+    order_status: orderStatusLabel(data.status),
     payment_method: PAYMENT_METHOD_LABELS[data.paymentMethod] ?? data.paymentMethod,
     items: formatItems(data.items),
     item_count: String(data.items.reduce((sum, item) => sum + item.quantity, 0)),

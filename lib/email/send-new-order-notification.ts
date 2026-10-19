@@ -1,5 +1,6 @@
 import { formatDeliveryFee } from "@/lib/order-template";
 import { PAYMENT_METHOD_LABELS } from "@/lib/order-payment";
+import { orderStatusLabel } from "@/lib/order-status";
 import { formatter } from "@/lib/utils";
 import { isStoreEmailDeliveryBlocked } from "@/lib/email/email-delivery";
 import { getResendClient } from "@/lib/resend";
@@ -96,7 +97,7 @@ export async function sendNewOrderNotification(order: NotificationOrder) {
         ["Store", order.store.name],
         ["Tracking ID", order.trackingId],
         ["Order date", order.createdAt.toLocaleString("en-PK")],
-        ["Status", order.status],
+        ["Status", orderStatusLabel(order.status)],
         ["Payment method", PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod],
         ["Customer name", display(order.customerName)],
         ["Customer phone", display(order.phone)],

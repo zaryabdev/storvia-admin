@@ -1,5 +1,6 @@
 "use client";
 
+import { orderStatusLabel } from "@/lib/order-status";
 import { BlockedBadge } from "./blocked-phone";
 import { CellAction } from "./cell-action";
 import { CustomerHistory } from "./customer-history";
@@ -32,7 +33,7 @@ export function OrderMobileRow({ order }: OrderMobileRowProps) {
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-                <span className="font-medium break-words">{order.status}</span>
+                <span className="font-medium break-words">{orderStatusLabel(order.status)}</span>
                 <PaymentSummary order={order} className="text-xs text-muted-foreground" />
             </div>
             {order.courierTracking ? (
