@@ -447,6 +447,8 @@ model Product {
   price             Decimal
   // Display-only "was" price for sales; never used by orders, totals, billing or metrics.
   compareAtPrice    Decimal?
+  // Optional plain text for the product page (rules in lib/product-description.ts).
+  description       String?
   quantity          Int         @default(0)
   // Low-stock alert (rules in lib/stock.ts). Threshold null = the Store default;
   // kept while the alert is off, just unused.

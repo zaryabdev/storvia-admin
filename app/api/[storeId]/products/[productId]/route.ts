@@ -5,6 +5,7 @@ import prismadb from "@/lib/prismadb";
 import { productInUseMessage, inUseResponse, foreignKeyConflictResponse } from "@/lib/delete-guards";
 import { existsInStore, findForeignReference } from "@/lib/store-scope";
 import { parseCompareAtPrice } from "@/lib/compare-at-price";
+import { parseProductDescription, publicProductDescription } from "@/lib/product-description";
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from "@/lib/product-images";
 import { DEFAULT_STOCK_SETTINGS, STOCK_SETTINGS_SELECT, parseLowStockAlert, parseProductLowStockThreshold, stockDisplay } from "@/lib/stock";
 
@@ -48,7 +49,12 @@ export async function GET(
       return NextResponse.json(null);
     }
 
-    return NextResponse.json({ ...product, stockDisplay: stockDisplay(product, store ?? DEFAULT_STOCK_SETTINGS) });
+    return NextResponse.json({
+      ...product,
+      // Re-checked on the way out: invalid or blank → null.
+      description: publicProductDescription(product.description),
+      stockDisplay: stockDisplay(product, store ?? DEFAULT_STOCK_SETTINGS),
+    });
   } catch (error) {
     console.log('[PRODUCT_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
@@ -114,7 +120,7 @@ export async function PATCH(
 
     const body = await req.json();
 
-    const { name, price, compareAtPrice, quantity, lowStockAlert, lowStockThreshold, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
+    const { name, price, compareAtPrice, description, quantity, lowStockAlert, lowStockThreshold, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 401 });
@@ -167,6 +173,13 @@ export async function PATCH(
       return new NextResponse(stockThreshold.error, { status: 400 });
     }
 
+    // Missing = unchanged; null / blank = cleared; otherwise plain text (lib/product-description.ts).
+    const productDescription = parseProductDescription(description);
+
+    if ("error" in productDescription) {
+      return new NextResponse(productDescription.error, { status: 400 });
+    }
+
     if (!categoryId) {
       return new NextResponse("Category id is required", { status: 400 });
     }
@@ -212,6 +225,7 @@ export async function PATCH(
           name,
           price,
           compareAtPrice: compareAt.value,
+          description: productDescription.value,
           quantity,
           lowStockAlert: stockAlert.value,
           lowStockThreshold: stockThreshold.value,

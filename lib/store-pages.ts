@@ -92,8 +92,8 @@ export const normalizeFaqQuestion = (text: string) => text.replace(/\s+/g, " ").
 type TextResult = { value: string | null } | { error: string };
 
 // A text field: control characters → the error; normalised; blank → null;
-// more than `max` code points → the error.
-function checkText(
+// more than `max` code points → the error. Also used by lib/product-description.ts.
+export function checkText(
   raw: string,
   normalize: (text: string) => string,
   max: number,

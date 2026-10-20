@@ -5,6 +5,7 @@ import prismadb from '@/lib/prismadb';
 import { buildProductSearchFilter, parseSearchTerms } from '@/lib/product-search';
 import { findForeignReference } from '@/lib/store-scope';
 import { parseCompareAtPrice, parseProductsLimit } from '@/lib/compare-at-price';
+import { parseProductDescription } from '@/lib/product-description';
 import { PRODUCT_IMAGE_ORDER, toImageRows, validateProductImages } from '@/lib/product-images';
 import { DEFAULT_STOCK_SETTINGS, STOCK_SETTINGS_SELECT, parseLowStockAlert, parseProductLowStockThreshold, stockDisplay } from '@/lib/stock';
 
@@ -17,7 +18,7 @@ export async function POST(
 
     const body = await req.json();
 
-    const { name, price, compareAtPrice, quantity, lowStockAlert, lowStockThreshold, categoryId, colorId, sizeId, images, isFeatured, isArchived } = body;
+    const { name, price, compareAtPrice, description, quantity, lowStockAlert, lowStockThreshold, categoryId, colorId, sizeId, images, isFeatured, isArchived } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 401 });
@@ -65,6 +66,13 @@ export async function POST(
       return new NextResponse(stockThreshold.error, { status: 400 });
     }
 
+    // Missing / null / blank = none; otherwise plain text (lib/product-description.ts).
+    const productDescription = parseProductDescription(description);
+
+    if ("error" in productDescription) {
+      return new NextResponse(productDescription.error, { status: 400 });
+    }
+
     if (!categoryId) {
       return new NextResponse("Category id is required", { status: 400 });
     }
@@ -103,6 +111,7 @@ export async function POST(
         name,
         price,
         compareAtPrice: compareAt.value,
+        description: productDescription.value,
         quantity,
         lowStockAlert: stockAlert.value,
         lowStockThreshold: stockThreshold.value,
@@ -204,7 +213,10 @@ export async function GET(
     // A missing Store has no products; the fallback only satisfies the types.
     const settings = store ?? DEFAULT_STOCK_SETTINGS;
 
-    return NextResponse.json(products.map((product) => ({ ...product, stockDisplay: stockDisplay(product, settings) })));
+    // The description is for the by-id read (the product page) only; lists leave it out.
+    return NextResponse.json(
+      products.map(({ description: _description, ...product }) => ({ ...product, stockDisplay: stockDisplay(product, settings) })),
+    );
   } catch (error) {
     console.log('[PRODUCTS_GET]', error);
     return new NextResponse("Internal error", { status: 500 });

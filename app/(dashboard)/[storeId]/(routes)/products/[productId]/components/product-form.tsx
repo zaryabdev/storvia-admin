@@ -31,6 +31,11 @@ import { uploadedImageUrlError } from "@/lib/media"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { parseProductLowStockThreshold } from "@/lib/stock"
+import { formatCount } from "@/lib/store-pages"
+import { MAX_PRODUCT_DESCRIPTION_LENGTH, parseProductDescription, productDescriptionLength } from "@/lib/product-description"
+
+const TEXTAREA_CLASS =
+  "flex min-h-[80px] w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -46,6 +51,8 @@ const formSchema = z.object({
   lowStockAlert: z.boolean(),
   // "" = use the Store default. Same rule as the server (lib/stock.ts).
   lowStockThreshold: z.string().optional(),
+  // "" = no description. Checked live below (lib/product-description.ts); the server is authoritative.
+  description: z.string().optional(),
   categoryId: z.string().min(1),
   colorId: z.string().min(1),
   sizeId: z.string().min(1),
@@ -127,6 +134,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     price: parseFloat(String(initialData?.price)),
     compareAtPrice: initialData.compareAtPrice != null ? String(initialData.compareAtPrice) : '',
     lowStockThreshold: initialData.lowStockThreshold != null ? String(initialData.lowStockThreshold) : '',
+    description: initialData.description ?? '',
   } : {
     name: '',
     images: [],
@@ -135,6 +143,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     quantity: 0,
     lowStockAlert: true,
     lowStockThreshold: '',
+    description: '',
     categoryId: '',
     colorId: '',
     sizeId: '',
@@ -149,12 +158,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const lowStockAlert = form.watch('lowStockAlert');
 
+  // Same rules as the server, so the message matches its 400 (first problem only).
+  const descriptionText = form.watch('description') ?? '';
+  const parsedDescription = parseProductDescription(descriptionText);
+  const descriptionError = 'error' in parsedDescription ? parsedDescription.error : null;
+  const descriptionLength = productDescriptionLength(descriptionText);
+
   const onSubmit = async (values: ProductFormValues) => {
+    if (descriptionError) return;
+
     // Blank = no sale price / the Store default: sent as null so editing can clear it.
     const data = {
       ...values,
       compareAtPrice: values.compareAtPrice?.trim() ? values.compareAtPrice.trim() : null,
       lowStockThreshold: values.lowStockThreshold?.trim() ? values.lowStockThreshold.trim() : null,
+      // Blank = no description (the server stores null).
+      description: values.description ?? '',
     };
 
     try {
@@ -334,6 +353,41 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             />
             <FormField
               control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="min-w-0 md:col-span-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <FormLabel>Description (optional)</FormLabel>
+                    <span
+                      className={`shrink-0 text-sm tabular-nums ${descriptionLength > MAX_PRODUCT_DESCRIPTION_LENGTH ? "font-medium text-destructive" : "text-muted-foreground"}`}
+                    >
+                      {formatCount(descriptionLength)} / {formatCount(MAX_PRODUCT_DESCRIPTION_LENGTH)}
+                    </span>
+                  </div>
+                  <FormControl>
+                    <textarea
+                      dir="auto"
+                      rows={6}
+                      className={TEXTAREA_CLASS}
+                      disabled={loading}
+                      {...field}
+                      value={field.value ?? ''}
+                      aria-invalid={Boolean(descriptionError)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Shown on your product page. A blank line starts a new paragraph.
+                  </FormDescription>
+                  {descriptionError ? (
+                    <p role="alert" className="break-words text-sm font-medium text-destructive">
+                      {descriptionError}
+                    </p>
+                  ) : null}
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="categoryId"
               render={({ field }) => (
                 <FormItem>
@@ -445,7 +499,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               )}
             />
           </div>
-          <Button disabled={loading} className="ml-auto" type="submit">
+          <Button disabled={loading || Boolean(descriptionError)} className="ml-auto" type="submit">
             {action}
           </Button>
         </form>
