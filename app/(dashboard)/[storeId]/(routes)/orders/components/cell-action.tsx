@@ -54,8 +54,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 toast.success("Order updated.");
                 setPendingStatus(null);
                 router.refresh();
-            } catch {
-                toast.error("Something went wrong.");
+            } catch (error: any) {
+                // 503 ORDER_NOT_UPDATED: Mark Confirmed or Cancel timed out and nothing changed.
+                const data = error?.response?.data;
+                toast.error(
+                    error?.response?.status === 503 && data?.error === "ORDER_NOT_UPDATED"
+                        ? "Couldn't update the order. Please try again."
+                        : "Something went wrong.",
+                );
             } finally {
                 setUpdating(false);
             }

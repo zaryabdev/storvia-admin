@@ -61,7 +61,8 @@ function toResponse(order: CreatedOrder): ManualOrderResponse {
 // "Already paid" (the Mark paid rule, planPaymentUpdate) run in ONE
 // transaction: if any step fails, nothing is created.
 // 401 unauthenticated, 404 unknown Store, 403 another owner's Store; a product
-// of another Store is 400 like an unknown one. Rules: DECISIONS.md → Manual
+// of another Store is 400 like an unknown one; a timed-out creating
+// transaction is 503 ORDER_NOT_CREATED (nothing created). Rules: DECISIONS.md → Manual
 // order creation. The body (customer details) is never logged.
 export async function POST(req: Request, { params }: { params: { storeId: string } }) {
     try {
@@ -125,6 +126,14 @@ export async function POST(req: Request, { params }: { params: { storeId: string
 
         return NextResponse.json(toResponse(result.order));
     } catch (error) {
+        // The creating transaction timed out or was already closed (P2028,
+        // e.g. a slow database connection). It was rolled back, so nothing
+        // was created and trying again is safe. Only the code is logged.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2028") {
+            console.log("[ORDERS_POST]", error.code);
+            return apiError(503, "ORDER_NOT_CREATED", "Couldn't create the order. Please try again.");
+        }
+
         // Never log the body (customer details). Prisma validation errors echo
         // the query arguments, so only their name is logged.
         console.log(

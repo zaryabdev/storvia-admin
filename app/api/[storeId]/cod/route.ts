@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { ORDER_CORS_HEADERS, createOrder, type CreateOrderPayload } from "@/lib/order-create";
@@ -23,7 +24,16 @@ export async function POST(
 
         return NextResponse.json(result.body, { headers: corsHeaders });
     } catch (error) {
-        console.log("[COD_POST]", error);
+        // Never the error object: Prisma errors can echo the query arguments
+        // (customer details). Only the name and, for Prisma, the code.
+        console.log(
+            "[COD_POST]",
+            error instanceof Prisma.PrismaClientKnownRequestError
+                ? `${error.name} ${error.code}`
+                : error instanceof Error
+                  ? error.name
+                  : "Unknown error",
+        );
         return new NextResponse("Internal error", {
             status: 500,
             headers: corsHeaders,

@@ -1,6 +1,6 @@
 import prismadb from "@/lib/prismadb";
 import { NextResponse } from "next/server";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, Prisma } from "@prisma/client";
 import { auth } from "@clerk/nextjs";
 
 import {
@@ -90,20 +90,43 @@ export async function PATCH(
         if (nextStatus === "CONFIRMED") {
             const confirmedAt = new Date();
             try {
-                const updatedOrder = await prismadb.$transaction(async (tx) => {
-                    await confirmOrderInTransaction(tx, {
-                        orderId: params.orderId,
-                        storeId: params.storeId,
-                        previousStatus,
-                        items: order.orderItems,
-                        confirmedAt,
-                    });
+                const updatedOrder = await prismadb.$transaction(
+                    async (tx) => {
+                        await confirmOrderInTransaction(tx, {
+                            orderId: params.orderId,
+                            storeId: params.storeId,
+                            previousStatus,
+                            items: order.orderItems,
+                            confirmedAt,
+                        });
 
-                    return tx.order.findUniqueOrThrow({ where: { id: params.orderId } });
-                });
+                        return tx.order.findUniqueOrThrow({ where: { id: params.orderId } });
+                    },
+                    // Each query is one round trip to the database. A many-line
+                    // order is one stock query per line: milliseconds in
+                    // production, but several seconds from a far-away dev
+                    // machine, past Prisma's defaults (2 s to start, 5 s to
+                    // finish → P2028). The bounds still end a stuck
+                    // transaction, which holds the product rows it decremented.
+                    { maxWait: 10_000, timeout: 20_000 },
+                );
 
                 return NextResponse.json(updatedOrder);
             } catch (error) {
+                // The transaction timed out or was already closed (P2028). It
+                // was rolled back, so nothing changed and trying again is
+                // safe. Only the code is logged.
+                if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2028") {
+                    console.log("[ORDER_PATCH]", error.code);
+                    return NextResponse.json(
+                        {
+                            error: "ORDER_NOT_UPDATED",
+                            message: "Couldn't update the order. Please try again.",
+                        },
+                        { status: 503 },
+                    );
+                }
+
                 if (error instanceof InsufficientStockError) {
                     return NextResponse.json(
                         {
@@ -132,32 +155,54 @@ export async function PATCH(
         // stock for every line, exactly once, inside ONE transaction.
         if (previousStatus === "CONFIRMED" && nextStatus === "CANCELED") {
             try {
-                const updatedOrder = await prismadb.$transaction(async (tx) => {
-                    const claim = await tx.order.updateMany({
-                        where: {
-                            id: params.orderId,
-                            storeId: params.storeId,
-                            status: "CONFIRMED",
-                        },
-                        data: { status: "CANCELED" },
-                    });
-
-                    if (claim.count !== 1) {
-                        throw new TransitionConflictError();
-                    }
-
-                    for (const item of order.orderItems) {
-                        await tx.product.updateMany({
-                            where: { id: item.productId, storeId: order.storeId },
-                            data: { quantity: { increment: item.quantity } },
+                const updatedOrder = await prismadb.$transaction(
+                    async (tx) => {
+                        const claim = await tx.order.updateMany({
+                            where: {
+                                id: params.orderId,
+                                storeId: params.storeId,
+                                status: "CONFIRMED",
+                            },
+                            data: { status: "CANCELED" },
                         });
-                    }
 
-                    return tx.order.findUniqueOrThrow({ where: { id: params.orderId } });
-                });
+                        if (claim.count !== 1) {
+                            throw new TransitionConflictError();
+                        }
+
+                        for (const item of order.orderItems) {
+                            await tx.product.updateMany({
+                                where: { id: item.productId, storeId: order.storeId },
+                                data: { quantity: { increment: item.quantity } },
+                            });
+                        }
+
+                        return tx.order.findUniqueOrThrow({ where: { id: params.orderId } });
+                    },
+                    // Each query is one round trip to the database. A many-line
+                    // order is one stock query per line: milliseconds in
+                    // production, but several seconds from a far-away dev
+                    // machine, past Prisma's defaults (2 s to start, 5 s to
+                    // finish → P2028). The bounds still end a stuck
+                    // transaction, which holds the product rows it restored.
+                    { maxWait: 10_000, timeout: 20_000 },
+                );
 
                 return NextResponse.json(updatedOrder);
             } catch (error) {
+                // The transaction timed out or was already closed (P2028). It
+                // was rolled back, so nothing changed and trying again is
+                // safe. Only the code is logged.
+                if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2028") {
+                    console.log("[ORDER_PATCH]", error.code);
+                    return NextResponse.json(
+                        {
+                            error: "ORDER_NOT_UPDATED",
+                            message: "Couldn't update the order. Please try again.",
+                        },
+                        { status: 503 },
+                    );
+                }
                 if (error instanceof TransitionConflictError) {
                     return NextResponse.json(
                         {

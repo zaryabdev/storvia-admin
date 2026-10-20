@@ -63,6 +63,8 @@ function serverMessage(error: any): string {
         if (typeof data === "string" && data) return data;
         if (data && typeof data.message === "string" && data.message) return data.message;
     }
+    // 503: the order wasn't created (e.g. the database was too slow); the server says to try again.
+    if (status === 503 && data && typeof data.message === "string" && data.message) return data.message;
     return "Something went wrong. Please try again.";
 }
 

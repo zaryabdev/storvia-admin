@@ -355,64 +355,107 @@ export async function createOrder(
     // confirms the order (see app/api/[storeId]/orders/[orderId]/route.ts),
     // or by a manual order's `afterCreate` in the same transaction.
     // Every order starts unpaid; only the merchant marks a bank transfer paid.
-    const insertOrder = (db: Prisma.TransactionClient) => db.order.create({
-        data: {
-            storeId,
-            status: "DRAFT",
-            paymentMethod,
-            trackingId,
-            isPaid: false,
+    // The order's columns; the two inserts below differ only in how the lines
+    // are written and what is read back.
+    const orderData: Omit<Prisma.OrderUncheckedCreateInput, "orderItems"> = {
+        storeId,
+        status: "DRAFT",
+        paymentMethod,
+        trackingId,
+        isPaid: false,
 
-            // ✅ NEW: persist to actual columns
-            customerName,
-            email,
-            phone,
+        // ✅ NEW: persist to actual columns
+        customerName,
+        email,
+        phone,
 
-            addressLine1,
-            addressLine2,
-            city,
-            postalCode,
-            country,
-            customerNotes,
+        addressLine1,
+        addressLine2,
+        city,
+        postalCode,
+        country,
+        customerNotes,
 
-            // optional legacy display field
-            address,
+        // optional legacy display field
+        address,
 
-            orderItems: {
-                create: calculatedItems.map(({ item, unitPrice, lineTotal }) => ({
-                    quantity: item.quantity,
-                    unitPrice,
-                    lineTotal,
-                    product: { connect: { id: item.productId } },
-                })),
-            },
-            subtotal,
-            deliveryFee: new PreciseDecimal(deliveryFee),
-            total,
-            currency: "PKR",
-            // Manual orders only; checkout orders keep the column default (WEBSITE).
-            ...(options.manual ? { source: "MANUAL" as const } : {}),
-        },
-        include: CREATED_ORDER_INCLUDE,
-    });
+        subtotal,
+        deliveryFee: new PreciseDecimal(deliveryFee),
+        total,
+        currency: "PKR",
+        // Manual orders only; checkout orders keep the column default (WEBSITE).
+        ...(options.manual ? { source: "MANUAL" as const } : {}),
+    };
 
     let order: CreatedOrder;
 
     if (!options.manual) {
-        order = await insertOrder(prismadb);
+        order = await prismadb.order.create({
+            data: {
+                ...orderData,
+                orderItems: {
+                    create: calculatedItems.map(({ item, unitPrice, lineTotal }) => ({
+                        quantity: item.quantity,
+                        unitPrice,
+                        lineTotal,
+                        product: { connect: { id: item.productId } },
+                    })),
+                },
+            },
+            include: CREATED_ORDER_INCLUDE,
+        });
     } else {
         // Insert + afterCreate (confirm, mark paid) + read-back commit together
-        // or not at all.
+        // or not at all. Every read that doesn't need the transaction (Store,
+        // delivery, products, prices) ran above; the stock guarantee is the
+        // conditional decrement in afterCreate (lib/order-confirm.ts), which
+        // re-checks every line inside the transaction.
         const { afterCreate } = options.manual;
         try {
-            order = await prismadb.$transaction(async (tx) => {
-                const created = await insertOrder(tx);
-                await afterCreate(tx, created);
-                return tx.order.findUniqueOrThrow({
-                    where: { id: created.id },
-                    include: CREATED_ORDER_INCLUDE,
-                });
-            });
+            order = await prismadb.$transaction(
+                async (tx) => {
+                    // One INSERT for all lines, and no read-back here: the
+                    // full order is read once, after afterCreate.
+                    const created = await tx.order.create({
+                        data: {
+                            ...orderData,
+                            orderItems: {
+                                createMany: {
+                                    data: calculatedItems.map(({ item, unitPrice, lineTotal }) => ({
+                                        productId: item.productId,
+                                        quantity: item.quantity,
+                                        unitPrice,
+                                        lineTotal,
+                                    })),
+                                },
+                            },
+                        },
+                        select: {
+                            id: true,
+                            status: true,
+                            paymentMethod: true,
+                            isPaid: true,
+                            paidAt: true,
+                            paymentReceivedVia: true,
+                        },
+                    });
+                    await afterCreate(tx, {
+                        ...created,
+                        orderItems: items.map(({ productId, quantity }) => ({ productId, quantity })),
+                    });
+                    return tx.order.findUniqueOrThrow({
+                        where: { id: created.id },
+                        include: CREATED_ORDER_INCLUDE,
+                    });
+                },
+                // Each query is one round trip to the database. A 5-line
+                // confirmed order is ~15 queries: milliseconds in production,
+                // but several seconds from a far-away dev machine, past
+                // Prisma's defaults (2 s to start, 5 s to finish → P2028).
+                // The bounds still end a stuck transaction, which holds the
+                // product rows it decremented.
+                { maxWait: 10_000, timeout: 20_000 },
+            );
         } catch (error) {
             // Stock ran out between the check above and the confirmation:
             // nothing was created.
